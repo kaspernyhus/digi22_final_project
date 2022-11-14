@@ -19,6 +19,7 @@ typedef void (*sensor_init)(void);
 typedef uint8_t (*sensor_available)(void);
 
 typedef struct {
+	char* name;
 	sensor_init init;
 	sensor_read read;
 	sensor_available is_available;

@@ -23,21 +23,36 @@ void system_init(void)
 {
 	systick_init();
 	uart_init(9600);
+}
 
-	// Sensor MODULE
+
+// Move out of main.c
+void register_sensors(void)
+{
 	sensor_t temp_sensor = {
+		.name = "BME280 Temperature Sensor",
 		.init = bme280_temp_init,
 		.read = bme280_temp_read,
 		.is_available = bme280_temp_available
 	};
 	sensor_module_register(temp_sensor);
+	sensor_t hum_sensor = {
+		.name = "BME280 Humidity Sensor",
+		.init = bme280_hum_init,
+		.read = bme280_hum_read,
+		.is_available = bme280_hum_available
+	};
+	sensor_module_register(hum_sensor);
 	sensor_module_init();
 }
+
 
 int main(void)
 {
 	system_init();
 	printf("---- Starting program ----\n");
+
+	register_sensors();
 
 	while (1)
 	{

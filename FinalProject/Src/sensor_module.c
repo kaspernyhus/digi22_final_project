@@ -49,7 +49,7 @@ void sensor_module_read(float* new_sensor_data)
 	for (int i=0; i<sensors_registered; i++) {
         if (sensors[i].is_available()) {
 		    sensor_data[i] = sensors[i].read();
-		    printf("Sensor%d reading = %.2f\n", i, sensor_data[i]);
+		    printf("%s reading = %.2f\n", sensors[i].name, sensor_data[i]);
         }
 	}
     memcpy(new_sensor_data, sensor_data, sizeof(sensor_data));

@@ -27,13 +27,13 @@ uint8_t bme280_temp_available(void)
 
 void bme280_hum_init(void)
 {
-	printf("Initializing temperature sensor\n");
+	printf("Initializing humidity sensor\n");
 }
 
 float bme280_hum_read(void)
 {
-	float temperature = 23.234234;
-	return temperature;
+	float humidity = 89.4234;
+	return humidity;
 }
 
 uint8_t bme280_hum_available(void)
