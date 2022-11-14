@@ -6,7 +6,13 @@
 #include "sensor_module.h"
 #include "bme280.h"
 
+#define DISPLAY_MODULE_UPDATE_INTERVAL 10
+
 uint16_t sensor_module_ticks = 0;
+uint16_t openlog_module_run = 0;
+uint16_t processing_module_run = 0;
+uint16_t display_module_ticks = 0;
+
 float new_data[MAX_NUMBER_OF_SENSORS];
 
 /**
@@ -48,12 +54,22 @@ int main(void)
 			sensor_module_ticks++;
 
 			// OpenLog MODULE
-
+			if (openlog_module_run) {
+				openlog_module_run = 0;
+				printf("Saving data to SD card");
+			}
 
 			// Processing MODULE
-
+			if (processing_module_run) {
+				processing_module_run = 0;
+				printf("Processing sensor data");
+			}
 
 			// Display MODULE
+			if (display_module_ticks >= DISPLAY_MODULE_UPDATE_INTERVAL) {
+				display_module_ticks = 0;
+				printf("Updating display");
+			}
 		}
 	}
 }
