@@ -118,17 +118,11 @@ void bme280_burst_read(void)
 	int32_t var1, var2;
 	u_int32_t adc_T = ((rcv_buffer[3]<<16) | (rcv_buffer[4]<<8) | (rcv_buffer[5]))>>4;
 	printf("Temperature: 0x%08lX\n", adc_T);
-	// p.25
+	// Calculations from DS p.25
 	var1 = ((((adc_T>>3) - ((int32_t)bme280_calibration_data.dig_T1<<1))) * ((int32_t)bme280_calibration_data.dig_T2)) >> 11;
 	var2 = (((((adc_T>>4) - ((int32_t)bme280_calibration_data.dig_T1)) * ((adc_T>>4) - ((int32_t)bme280_calibration_data.dig_T1))) >> 12) * ((int32_t)bme280_calibration_data.dig_T3)) >> 14;
-
-	// var1 = (int32_t)((adc_T / 8) - ((int32_t)bme280_calibration_data.dig_T1 * 2));
-	// var1 = (var1 * ((int32_t)bme280_calibration_data.dig_T2)) / 2048;
-	// var2 = (int32_t)((adc_T / 16) - ((int32_t)bme280_calibration_data.dig_T1));
-	// var2 = (((var2 * var2) / 4096) * ((int32_t)bme280_calibration_data.dig_T3)) / 16384;
-
 	int32_t t_fine = var1 + var2;
-	int32_t T = (t_fine * 5 + 128) / 256;
+	int32_t T = (t_fine * 5 + 128) >> 8;
 	float temperature = (float)T / 100;
 	printf("Temperature: %.2f\n", temperature);
 
