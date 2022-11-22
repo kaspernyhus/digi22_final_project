@@ -12,7 +12,7 @@
 #include "system.h"
 
 #define MAX_NUMBER_OF_SENSORS 3
-#define SENSOR_MODULE_INTERVAL 3
+#define SENSOR_MODULE_INTERVAL 20
 
 typedef float (*sensor_read)(void);
 typedef void (*sensor_init)(void);

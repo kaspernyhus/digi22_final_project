@@ -9,7 +9,7 @@
 
 #define DISPLAY_MODULE_UPDATE_INTERVAL 10
 
-uint16_t sensor_module_ticks = 2;
+uint16_t sensor_module_ticks = 0;
 uint16_t openlog_module_run = 0;
 uint16_t processing_module_run = 0;
 uint16_t display_module_ticks = 0;
@@ -68,7 +68,7 @@ int main(void)
 			// Sensor MODULE
 			if (sensor_module_ticks >= SENSOR_MODULE_INTERVAL) {
 				sensor_module_ticks = 0;
-				printf("Perform sensor reading\n");
+				// printf("Perform sensor reading\n");
 				// sensor_module_read(new_data);
 				bme280_burst_read();
 			}

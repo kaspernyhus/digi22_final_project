@@ -68,9 +68,6 @@ void i2c_write(uint8_t address, uint8_t* data, uint8_t bytes)
 		while(I2C_GetFlagStatus(I2C1, I2C_FLAG_TXE) == RESET); // Transmit data register empty
 		bytes--;
 	}
-	// I2C_GenerateSTOP(I2C1, ENABLE);
-
-	// while(I2C_GetFlagStatus(I2C1, I2C_FLAG_TC) == RESET);
 
 	while(I2C_GetFlagStatus(I2C1, I2C_FLAG_STOPF) == RESET);
 	I2C_ClearFlag(I2C1, I2C_FLAG_STOPF);
