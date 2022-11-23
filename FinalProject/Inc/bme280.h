@@ -39,6 +39,7 @@
 #define BME280_REGISTER_DIG_H5 0xE5
 #define BME280_REGISTER_DIG_H6 0xE7
 
+#define BME280_ALTERNATIVE_ADDRESS 0x76
 #define BME280_DEFAULT_ADDRESS 0x77
 #define BME280_CHIPID_REG 0xD0
 #define BME280_CONTROL_HUM_REG 0xF2
@@ -77,7 +78,7 @@ typedef enum {
 } bme280_mode_t;
 
 void bme280_init(void);
-void bme280_burst_read(void);
+void bme280_burst_read(float* temperature, float* pressure, float* humidity);
 
 
 #endif /* BME280_H_ */

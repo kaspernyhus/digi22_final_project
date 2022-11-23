@@ -70,7 +70,9 @@ int main(void)
 				sensor_module_ticks = 0;
 				// printf("Perform sensor reading\n");
 				// sensor_module_read(new_data);
-				bme280_burst_read();
+				float temp, pres, hum;
+				bme280_burst_read(&temp, &pres, &hum);
+				printf("Temperature: %.2f DegC\nPressure: %.2f hPa\nHumidity: %.2f %%RH", temp, pres, hum);
 			}
 			sensor_module_ticks++;
 
