@@ -84,7 +84,7 @@ typedef struct {
 
 void bme280_init(I2C_HandleTypeDef* i2c_handle);
 uint8_t bme280_whoami(void);
-void bme280_burst_read(float* temperature, float* pressure, float* humidity);
+void bme280_read_all(float* temperature, float* pressure, float* humidity);
 
 
 #endif /* BME280_H_ */

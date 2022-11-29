@@ -228,7 +228,7 @@ int main(void)
     if(updateDisp == 1) {
     	updateDisp = 0;
       float temp, hum, pres;
-      bme280_burst_read(&temp, &pres, &hum);
+      bme280_read_all(&temp, &pres, &hum);
       sprintf(uartBuf, "Temp: %.2f DegC // Pres: %.2f hPa // Hum: %.2f %%RH\n", temp, pres, hum);
       HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
     }

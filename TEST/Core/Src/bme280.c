@@ -173,7 +173,7 @@ float calculate_humidity(int32_t adc_H)
  * @param pressure
  * @param humidity
  */
-void bme280_burst_read(float* temperature, float* pressure, float* humidity)
+void bme280_read_all(float* temperature, float* pressure, float* humidity)
 {
 	if (_i2c == NULL) {
 		return;
