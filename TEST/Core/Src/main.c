@@ -60,6 +60,8 @@ DMA_HandleTypeDef hdma_usart1_rx;
 uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
 gps_data_t gps_data; // parsed gps data
+char uartBuf[100];
+char lcdBuf[20];
 volatile uint8_t updateDisp = 0;
 volatile uint8_t doMeasurement = 0;
 volatile uint8_t cnt = 0;
@@ -98,8 +100,6 @@ static void MX_TIM2_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	char uartBuf[100];
-	char lcdBuf[20];
 	char logData[100];
 	uint8_t lcdToggle = 0;
 
@@ -662,6 +662,13 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+
+  sprintf(uartBuf, "An error occured\n");
+  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
+  sprintf(lcdBuf, "ERROR!");
+  lcd_clear ();
+  lcd_put_cur(0, 0);
+  lcd_send_string((char*)lcdBuf);
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)
