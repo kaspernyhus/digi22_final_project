@@ -8,10 +8,10 @@
 #include "bme280.h"
 #include <stdio.h>
 
-I2C_HandleTypeDef *_i2c;
-int i2c_timeout = 100;
-bme280_calibration_data_t bme280_calibration_data;
-int32_t t_fine = 0;
+static I2C_HandleTypeDef *_i2c;
+static int i2c_timeout = 100;
+static bme280_calibration_data_t bme280_calibration_data;
+static int32_t t_fine = 0;
 
 void bme280_read_calibration_data(void)
 {

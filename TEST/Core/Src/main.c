@@ -60,6 +60,7 @@ DMA_HandleTypeDef hdma_usart1_rx;
 uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
 gps_data_t gps_data; // parsed gps data
+uint8_t gps_ready = 0;
 char uartBuf[100];
 char lcdBuf[20];
 volatile uint8_t updateDisp = 0;
@@ -69,6 +70,14 @@ uint8_t waterLevelFlag = 0;
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
 bme280_data_t bme280_data;
+
+typedef enum {
+  LCD_MODE_TIME,
+  LCD_MODE_GPS,
+  LCD_MODE_SPEED,
+  LCD_MODE_TEMP,
+  LCD_MODE_WATER_LVL
+} lcd_mode_t;
 
 /* USER CODE END PV */
 
@@ -101,7 +110,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	char logData[100];
-	uint8_t lcdToggle = 0;
+	lcd_mode_t lcd_mode = LCD_MODE_TIME;
 
   /* USER CODE END 1 */
 
@@ -139,10 +148,10 @@ int main(void)
   HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf) , 1000);
 
   // LCD
-  lcd_init ();
-  lcd_send_string ("Boat-log ON!");
+  lcd_init(&hi2c1);
+  lcd_send_string_xy("Boat-log ON!", 0, 0, CLEAR_LCD);
   HAL_Delay(2000);
-  lcd_clear ();
+  lcd_clear();
 
   // BME280
   if (bme280_init(&hi2c1)) {
@@ -167,9 +176,13 @@ int main(void)
     /* USER CODE BEGIN 3 */
 	  if(gpsFlag == 1)
 	  {
+		  gpsFlag = 0;
 		  getLocation(&gps_data, rxData);
 		  gps_data.date = rolloverDateConvertion(gps_data.date);
-		  gpsFlag = 0;
+      // TODO: set flag if GPS ready
+      if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
+        gps_ready = 1;
+      }
 	  }
 
 	  if(doMeasurement == 1)
@@ -196,76 +209,48 @@ int main(void)
       }
 	  }
 
-	  if(updateDisp == 1)
-	  {
+	  if(updateDisp == 1) {
 		  updateDisp = 0;
-	      if((gps_data.lati != 0) || (gps_data.longi != 0))
-		  {
-	    	  if (lcdToggle == 0)
-			  {
-				  sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.hours, gps_data.min , gps_data.sec);
-				  lcd_clear ();
-				  lcd_put_cur(0, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "Date: %d", gps_data.date);
-				  lcd_put_cur(1, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  lcdToggle = 1;
-			  }
-	    	  else if (lcdToggle == 1)
-			  {
-				  sprintf(lcdBuf, "Lati: %f", gps_data.lati);
-				  lcd_clear ();
-				  lcd_put_cur(0, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "Long: %f", gps_data.longi);
-				  lcd_put_cur(1, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  lcdToggle = 2;
-			  }
-			  else if (lcdToggle == 2)
-			  {
-				  sprintf(lcdBuf, "Km/h: %.02f", (gps_data.speed*1.852));
-				  lcd_clear ();
-				  lcd_put_cur(0, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
-				  lcd_put_cur(1, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  lcdToggle = 3;
-			  }
-			  else if (lcdToggle == 3)
-			  {
-				  sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
-				  lcd_clear ();
-				  lcd_put_cur(0, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
-				  lcd_put_cur(1, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  lcdToggle = 4;
-			  }
-			  else if (lcdToggle == 4)
-			  {
-				  sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
-				  lcd_clear ();
-				  lcd_put_cur(0, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
-				  lcd_put_cur(1, 0);
-				  lcd_send_string((char*)lcdBuf);
-				  lcdToggle = 0;
-			  }
-		  }
-		  else
-		  {
-			  sprintf(lcdBuf, "NO GPS LOCK!");
-			  lcd_clear ();
-			  lcd_put_cur(0, 0);
-			  lcd_send_string((char*)lcdBuf);
-//			  sprintf(uartBuf, "NO GPS LOCK!\r\n\n");
-//			  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), 1000);
-		  }
+      switch (lcd_mode)
+      {
+      case LCD_MODE_TIME:
+        sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.hours, gps_data.min , gps_data.sec);
+        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+        sprintf(lcdBuf, "Date: %d", gps_data.date);
+        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+        lcd_mode = LCD_MODE_GPS;
+        break;
+      case LCD_MODE_GPS:
+        sprintf(lcdBuf, "Lati: %f", gps_data.lati);
+        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+        sprintf(lcdBuf, "Long: %f", gps_data.longi);
+        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+        lcd_mode = LCD_MODE_SPEED;
+        break;
+      case LCD_MODE_SPEED:
+        sprintf(lcdBuf, "Km/h: %.02f", (gps_data.speed*1.852));
+        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+        sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
+        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+        lcd_mode = LCD_MODE_TEMP;
+        break;
+      case LCD_MODE_TEMP:
+        sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
+        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+        sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
+        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+        lcd_mode = LCD_MODE_WATER_LVL;
+        break;
+      case LCD_MODE_WATER_LVL:
+        sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
+        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+        sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
+        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+        lcd_mode = LCD_MODE_TIME;
+        break;
+      default:
+        break;
+      }
 	  }
   }
   /* USER CODE END 3 */
@@ -666,9 +651,7 @@ void Error_Handler(void)
   sprintf(uartBuf, "An error occured\n");
   HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
   sprintf(lcdBuf, "ERROR!");
-  lcd_clear ();
-  lcd_put_cur(0, 0);
-  lcd_send_string((char*)lcdBuf);
+  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   while (1)

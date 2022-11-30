@@ -1,7 +1,18 @@
-#include "i2c-lcd.h"
-extern I2C_HandleTypeDef hi2c1;
+/**
+ * @file i2c-lcd.c
+ * @author your name (you@domain.com)
+ * @brief
+ * @version 0.1
+ * @date 2022-11-30
+ *
+ * @copyright Copyright (c) 2022
+ *
+ */
 
-#define SLAVE_ADDRESS_LCD (0x3F << 1)
+#include "i2c-lcd.h"
+#include <stdint.h>
+
+static I2C_HandleTypeDef* _i2c;
 
 void lcd_send_cmd (char cmd)
 {
@@ -13,7 +24,7 @@ void lcd_send_cmd (char cmd)
 	data_t[1] = data_u|0x08;  //en=0, rs=0
 	data_t[2] = data_l|0x0C;  //en=1, rs=0
 	data_t[3] = data_l|0x08;  //en=0, rs=0
-	HAL_I2C_Master_Transmit (&hi2c1, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
+	HAL_I2C_Master_Transmit (_i2c, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
 }
 
 void lcd_send_data (char data)
@@ -26,7 +37,7 @@ void lcd_send_data (char data)
 	data_t[1] = data_u|0x09;  //en=0, rs=0
 	data_t[2] = data_l|0x0D;  //en=1, rs=0
 	data_t[3] = data_l|0x09;  //en=0, rs=0
-	HAL_I2C_Master_Transmit (&hi2c1, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
+	HAL_I2C_Master_Transmit (_i2c, SLAVE_ADDRESS_LCD,(uint8_t *) data_t, 4, 100);
 }
 
 void lcd_clear (void)
@@ -38,6 +49,12 @@ void lcd_clear (void)
 	}
 }
 
+/**
+ * @brief Put cursor at the entered position row (0 or 1), col (0-15);
+ *
+ * @param row
+ * @param col
+ */
 void lcd_put_cur(int row, int col)
 {
     switch (row)
@@ -49,13 +66,15 @@ void lcd_put_cur(int row, int col)
             col |= 0xC0;
             break;
     }
-
     lcd_send_cmd (col);
 }
 
 
-void lcd_init (void)
+void lcd_init (I2C_HandleTypeDef* i2c_handle)
 {
+	// Save pointer handle to i2c peripheral
+	_i2c = i2c_handle;
+
 	// 4 bit initialisation
 	HAL_Delay(50);  // wait for >40ms
 	lcd_send_cmd (0x30);
@@ -83,4 +102,18 @@ void lcd_init (void)
 void lcd_send_string (char *str)
 {
 	while (*str) lcd_send_data (*str++);
+}
+
+/**
+ * @brief Send string to LCD at (X,Y)
+ *
+ * @param clear clear LCD before write?
+ */
+void lcd_send_string_xy(char *str, int row, int col, lcd_clear_t clear)
+{
+	if (clear) {
+		lcd_clear();
+	}
+	lcd_put_cur(row, col);
+	lcd_send_string((char*)str);
 }

@@ -1,13 +1,24 @@
+/**
+ * @file i2c-lcd.h
+ * @author your name (you@domain.com)
+ * @brief
+ * @version 0.1
+ * @date 2022-11-30
+ *
+ * @copyright Copyright (c) 2022
+ *
+ */
+
+#pragma once
 #include "stm32f3xx_hal.h"
 
-void lcd_init (void);   // initialize lcd
+#define SLAVE_ADDRESS_LCD (0x3F << 1)
 
-void lcd_send_cmd (char cmd);  // send command to the lcd
+typedef enum {
+    DONT_CLEAR_LCD,
+    CLEAR_LCD
+} lcd_clear_t;
 
-void lcd_send_data (char data);  // send data to the lcd
-
-void lcd_send_string (char *str);  // send string to the lcd
-
-void lcd_put_cur(int row, int col);  // put cursor at the entered position row (0 or 1), col (0-15);
-
-void lcd_clear (void);
+void lcd_init(I2C_HandleTypeDef* i2c_handle);
+void lcd_send_string_xy(char *str, int row, int col, lcd_clear_t clear);
+void lcd_clear(void);
