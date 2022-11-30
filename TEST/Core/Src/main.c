@@ -56,6 +56,18 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
+typedef enum {
+  LCD_MODE_TIME,
+  LCD_MODE_GPS,
+  LCD_MODE_SPEED,
+  LCD_MODE_TEMP,
+  LCD_MODE_WATER_LVL
+} lcd_mode_t;
+
+typedef enum {
+  NO_DISASTER_DETECTED,
+  DISASTER_DETECTED
+} disaster_state_t;
 
 uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
@@ -70,14 +82,7 @@ uint8_t waterLevelFlag = 0;
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
 bme280_data_t bme280_data;
-
-typedef enum {
-  LCD_MODE_TIME,
-  LCD_MODE_GPS,
-  LCD_MODE_SPEED,
-  LCD_MODE_TEMP,
-  LCD_MODE_WATER_LVL
-} lcd_mode_t;
+disaster_state_t disaster_state = NO_DISASTER_DETECTED;
 
 /* USER CODE END PV */
 
@@ -93,6 +98,10 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
+void led_state(uint8_t state)
+{
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, state);
+}
 
 /* USER CODE END PFP */
 
@@ -216,11 +225,9 @@ int main(void)
       waterLevelFlag = 0;
       water_level = check_water_level(waterlevel_reading);
       if (water_level == WATER_LEVEL_HIGH) {
-        // Turn on pump
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET);
+        // TODO: Turn on pump relay
       } else {
-        // Turn pump off
-        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET);
+        // TODO: Turn pump relay off
       }
 	  }
 
