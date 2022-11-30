@@ -179,6 +179,7 @@ int main(void)
 		  gpsFlag = 0;
 		  getLocation(&gps_data, rxData);
 		  gps_data.date = rolloverDateConvertion(gps_data.date);
+      gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
       // TODO: set flag if GPS ready
       if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
         gps_ready = 1;
@@ -228,7 +229,7 @@ int main(void)
         lcd_mode = LCD_MODE_SPEED;
         break;
       case LCD_MODE_SPEED:
-        sprintf(lcdBuf, "Km/h: %.02f", (gps_data.speed*1.852));
+        sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
         lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
         sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
         lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
