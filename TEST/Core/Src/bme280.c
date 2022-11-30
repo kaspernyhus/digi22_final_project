@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 I2C_HandleTypeDef *_i2c;
-int i2c_timeout = 500;
+int i2c_timeout = 100;
 bme280_calibration_data_t bme280_calibration_data;
 int32_t t_fine = 0;
 
@@ -104,15 +104,18 @@ uint8_t bme280_whoami(void)
 	return chip_id;
 }
 
-void bme280_init(I2C_HandleTypeDef* i2c_handle)
+bool bme280_init(I2C_HandleTypeDef* i2c_handle)
 {
+	// Save pointer handle to I2C peripheral
 	_i2c = i2c_handle;
-
+	if (bme280_whoami() != BME280_ID) {
+		return false;
+	}
 	// Set values in control registers
 	bme280_force_measurement();
-
 	// Read chips NVM calibration data
 	bme280_read_calibration_data();
+	return true;
 }
 
 // Temperature in DegC, resolution 0.01 DegC.
@@ -173,7 +176,7 @@ float calculate_humidity(int32_t adc_H)
  * @param pressure
  * @param humidity
  */
-void bme280_read_all(float* temperature, float* pressure, float* humidity)
+void bme280_read_all(bme280_data_t* bme280_data)
 {
 	if (_i2c == NULL) {
 		return;
@@ -196,14 +199,13 @@ void bme280_read_all(float* temperature, float* pressure, float* humidity)
 
 	u_int32_t adc_T = ((rcv_buffer[3]<<16) | (rcv_buffer[4]<<8) | (rcv_buffer[5]))>>4;
 	float _temperature = calculate_temperatur(adc_T);
-	*temperature = _temperature;
+	bme280_data->temperature = _temperature;
 
 	uint32_t adc_P = ((rcv_buffer[0]<<16) | (rcv_buffer[1]<<8) | (rcv_buffer[2]))>>4;
 	float _pressure = calculate_pressure(adc_P);
-	*pressure = _pressure;
+	bme280_data->pressure = _pressure;
 
 	int32_t adc_H = (rcv_buffer[6]<<8) | (rcv_buffer[7]);
 	float _humidity = calculate_humidity(adc_H);
-	*humidity = _humidity;
+	bme280_data->humidity = _humidity;
 }
-

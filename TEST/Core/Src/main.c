@@ -47,11 +47,8 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
-
 I2C_HandleTypeDef hi2c1;
-
 TIM_HandleTypeDef htim2;
-
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
@@ -59,14 +56,15 @@ DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 
-uint8_t rxData[750];
+uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
-gps_data_t gps_data;
+gps_data_t gps_data; // parsed gps data
 volatile uint8_t updateDisp = 0;
 volatile uint8_t doMeasurement = 0;
 volatile uint8_t cnt = 0;
 uint16_t adc1Raw;
 uint8_t adc1Flag = 0;
+bme280_data_t bme280_data;
 
 /* USER CODE END PV */
 
@@ -102,7 +100,6 @@ int main(void)
 	char lcdBuf[20];
 	char logData[100];
 	uint8_t lcdToggle = 0;
-	float temp, hum, pres;
 
 	static char* waterLevel[] = {"LOW", "HIGH"};
 	uint8_t setLevel = 0;
@@ -140,21 +137,20 @@ int main(void)
 
   sprintf(uartBuf, "Boat-log ON!\n");		//Start message on Terminal
   HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf) , 1000);
-  lcd_init ();									//Init LCD
+
+  // LCD
+  lcd_init ();
   lcd_send_string ("Boat-log ON!");
   HAL_Delay(2000);
   lcd_clear ();
 
   // BME280
-  bme280_init(&hi2c1);
-  uint8_t bme280_ok = bme280_whoami();
-  if(bme280_ok == 0x60) {
+  if (bme280_init(&hi2c1)) {
     sprintf(uartBuf, "BME280 initialized\n");
-  } else {
-    sprintf(uartBuf, "BME280 initialization failed\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
   }
-  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), 1000);
 
+  // OpenLog
   //Header for .csv logfile
   sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl");
   openlogAppendFile("log1.csv", logData);
@@ -180,19 +176,12 @@ int main(void)
 	  {
 		  doMeasurement = 0;
 		  HAL_ADC_Start_IT(&hadc1);
-	      bme280_read_all(&temp, &pres, &hum);
-//	      sprintf(data, "GPS-Time: %02d:%02d:%02d // Lat: %f // Long = %f\nDate: %d // Km/h: %.02f // Heading: %.02f\n",
-//	    		  gps_data.hours, gps_data.min , gps_data.sec, gps_data.lati, gps_data.longi, gps_data.date, (gps_data.speed*1.852), gps_data.course);
-//		  HAL_UART_Transmit(&huart2, (uint8_t*)data, strlen(data), 1000);
-//		  sprintf(uartBuf, "Temp: %.02f DegC // Pres: %.02f hPa // Hum: %.02f %%RH\n", temp, pres, hum);
-//		  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), 1000);
-//		  sprintf(uartBuf, "WaterLvl: %s\n", waterLevel[setLevel]);
-//		  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), 1000);
-//		  HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n\n", 3, 1000);
+	    bme280_read_all(&bme280_data);
 
+      // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
-				  gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, (gps_data.speed*1.852), gps_data.course, temp, pres, hum, waterLevel[setLevel]);
-	      openlogAppendFile("log1.csv", logData);
+        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, (gps_data.speed*1.852), gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterLevel[setLevel]);
+      openlogAppendFile("log1.csv", logData);
 	  }
 
 	  if(adc1Flag == 1)
@@ -250,18 +239,18 @@ int main(void)
 			  }
 			  else if (lcdToggle == 3)
 			  {
-				  sprintf(lcdBuf, "Temp: %.02f DegC", temp);
+				  sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
 				  lcd_clear ();
 				  lcd_put_cur(0, 0);
 				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "Pres: %.02f hPa", pres);
+				  sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
 				  lcd_put_cur(1, 0);
 				  lcd_send_string((char*)lcdBuf);
 				  lcdToggle = 4;
 			  }
 			  else if (lcdToggle == 4)
 			  {
-				  sprintf(lcdBuf, "Hum: %.02f %%RH", hum);
+				  sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
 				  lcd_clear ();
 				  lcd_put_cur(0, 0);
 				  lcd_send_string((char*)lcdBuf);
