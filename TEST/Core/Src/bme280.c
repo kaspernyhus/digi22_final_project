@@ -132,28 +132,28 @@ float calculate_temperatur(uint32_t adc_T)
 }
 
 // Pressure in hPa
-float calculate_pressure(uint32_t adc_P)
-{
-	float pressure = 0;
-	int64_t var1, var2;
+// float calculate_pressure(uint32_t adc_P)
+// {
+// 	float pressure = 0;
+// 	int64_t var1, var2;
 
-	// Calculations from DS p.25
-	var1 = ((int64_t)t_fine) - 128000;
-	var2 = var1 * var1 * (int64_t)bme280_calibration_data.dig_P6;
-	var2 = var2 + ((var1*(int64_t)bme280_calibration_data.dig_P5)<<17);
-	var2 = var2 + (((int64_t)bme280_calibration_data.dig_P4)<<35);
-	var1 = ((var1 * var1 * (int64_t)bme280_calibration_data.dig_P3)>>8) + ((var1 * (int64_t)bme280_calibration_data.dig_P2)<<12);
-	var1 = (((((int64_t)1)<<47)+var1))*((int64_t)bme280_calibration_data.dig_P1)>>33;
-	if (var1 != 0) { // avoid exception caused by division by zero
-		int64_t p = 1048576-adc_P;
-		p = (((p<<31)-var2)*3125)/var1;
-		var1 = (((int64_t)bme280_calibration_data.dig_P9) * (p>>13) * (p>>13)) >> 25;
-		var2 = (((int64_t)bme280_calibration_data.dig_P8) * p) >> 19;
-		p = ((p + var1 + var2) >> 8) + (((int64_t)bme280_calibration_data.dig_P7)<<4);
-		pressure = p / 256.0 / 1000;
-	}
-	return pressure;
-}
+// 	// Calculations from DS p.25
+// 	var1 = ((int64_t)t_fine) - 128000;
+// 	var2 = var1 * var1 * (int64_t)bme280_calibration_data.dig_P6;
+// 	var2 = var2 + ((var1*(int64_t)bme280_calibration_data.dig_P5)<<17);
+// 	var2 = var2 + (((int64_t)bme280_calibration_data.dig_P4)<<35);
+// 	var1 = ((var1 * var1 * (int64_t)bme280_calibration_data.dig_P3)>>8) + ((var1 * (int64_t)bme280_calibration_data.dig_P2)<<12);
+// 	var1 = (((((int64_t)1)<<47)+var1))*((int64_t)bme280_calibration_data.dig_P1)>>33;
+// 	if (var1 != 0) { // avoid exception caused by division by zero
+// 		int64_t p = 1048576-adc_P;
+// 		p = (((p<<31)-var2)*3125)/var1;
+// 		var1 = (((int64_t)bme280_calibration_data.dig_P9) * (p>>13) * (p>>13)) >> 25;
+// 		var2 = (((int64_t)bme280_calibration_data.dig_P8) * p) >> 19;
+// 		p = ((p + var1 + var2) >> 8) + (((int64_t)bme280_calibration_data.dig_P7)<<4);
+// 		pressure = p / 256.0 / 1000;
+// 	}
+// 	return pressure;
+// }
 
 // Humidity in %RH
 float calculate_humidity(int32_t adc_H)
@@ -201,9 +201,9 @@ void bme280_read_all(bme280_data_t* bme280_data)
 	float _temperature = calculate_temperatur(adc_T);
 	bme280_data->temperature = _temperature;
 
-	uint32_t adc_P = ((rcv_buffer[0]<<16) | (rcv_buffer[1]<<8) | (rcv_buffer[2]))>>4;
-	float _pressure = calculate_pressure(adc_P);
-	bme280_data->pressure = _pressure;
+	// uint32_t adc_P = ((rcv_buffer[0]<<16) | (rcv_buffer[1]<<8) | (rcv_buffer[2]))>>4;
+	// float _pressure = calculate_pressure(adc_P);
+	// bme280_data->pressure = _pressure;
 
 	int32_t adc_H = (rcv_buffer[6]<<8) | (rcv_buffer[7]);
 	float _humidity = calculate_humidity(adc_H);
