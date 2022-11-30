@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 I2C_HandleTypeDef *_i2c;
-int i2c_timeout = 100;
+int i2c_timeout = 500;
 bme280_calibration_data_t bme280_calibration_data;
 int32_t t_fine = 0;
 
@@ -104,18 +104,15 @@ uint8_t bme280_whoami(void)
 	return chip_id;
 }
 
-bool bme280_init(I2C_HandleTypeDef* i2c_handle)
+void bme280_init(I2C_HandleTypeDef* i2c_handle)
 {
-	// Save pointer handle to I2C peripheral
 	_i2c = i2c_handle;
-	if (bme280_whoami() != BME280_ID) {
-		return false;
-	}
+
 	// Set values in control registers
 	bme280_force_measurement();
+
 	// Read chips NVM calibration data
 	bme280_read_calibration_data();
-	return true;
 }
 
 // Temperature in DegC, resolution 0.01 DegC.
@@ -176,7 +173,7 @@ float calculate_humidity(int32_t adc_H)
  * @param pressure
  * @param humidity
  */
-void bme280_read_all(bme280_data_t* sensor_data)
+void bme280_read_all(float* temperature, float* pressure, float* humidity)
 {
 	if (_i2c == NULL) {
 		return;
@@ -209,3 +206,4 @@ void bme280_read_all(bme280_data_t* sensor_data)
 	float _humidity = calculate_humidity(adc_H);
 	*humidity = _humidity;
 }
+
