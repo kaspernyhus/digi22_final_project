@@ -180,9 +180,10 @@ int main(void)
 		  getLocation(&gps_data, rxData);
 		  gps_data.date = rolloverDateConvertion(gps_data.date);
       gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-      // TODO: set flag if GPS ready
       if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
         gps_ready = 1;
+      } else {
+        gps_ready = 0;
       }
 	  }
 
@@ -194,7 +195,7 @@ int main(void)
 
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
-        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, (gps_data.speed*1.852), gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
+        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
       openlogAppendFile("log1.csv", logData);
 	  }
 
@@ -222,6 +223,9 @@ int main(void)
         lcd_mode = LCD_MODE_GPS;
         break;
       case LCD_MODE_GPS:
+        if (!gps_ready) {
+          lcd_mode = LCD_MODE_TEMP;
+        }
         sprintf(lcdBuf, "Lati: %f", gps_data.lati);
         lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
         sprintf(lcdBuf, "Long: %f", gps_data.longi);
@@ -229,6 +233,9 @@ int main(void)
         lcd_mode = LCD_MODE_SPEED;
         break;
       case LCD_MODE_SPEED:
+        if (!gps_ready) {
+          lcd_mode = LCD_MODE_TEMP;
+        }
         sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
         lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
         sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
