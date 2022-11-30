@@ -28,6 +28,7 @@
 #include "openlog_STM32.h"
 #include "bme280.h"
 #include "nmea_gps.h"
+#include "water_level.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,8 +63,9 @@ gps_data_t gps_data; // parsed gps data
 volatile uint8_t updateDisp = 0;
 volatile uint8_t doMeasurement = 0;
 volatile uint8_t cnt = 0;
-uint16_t adc1Raw;
-uint8_t adc1Flag = 0;
+uint8_t waterLevelFlag = 0;
+uint16_t waterlevel_reading = 0;
+water_level_t water_level = WATER_LEVEL_LOW;
 bme280_data_t bme280_data;
 
 /* USER CODE END PV */
@@ -101,8 +103,6 @@ int main(void)
 	char logData[100];
 	uint8_t lcdToggle = 0;
 
-	static char* waterLevel[] = {"LOW", "HIGH"};
-	uint8_t setLevel = 0;
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -180,23 +180,20 @@ int main(void)
 
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
-        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, (gps_data.speed*1.852), gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterLevel[setLevel]);
+        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, (gps_data.speed*1.852), gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if(adc1Flag == 1)
-	  {
-		  adc1Flag = 0;
-		  if(adc1Raw <= 600)
-		  {
-			  setLevel = 0;
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET);
-		  }
-		  else
-		  {
-			  setLevel = 1;
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET);
-		  }
+	  if(waterLevelFlag == 1) {
+      waterLevelFlag = 0;
+      water_level = check_water_level(waterlevel_reading);
+      if (water_level == WATER_LEVEL_HIGH) {
+        // Turn on pump
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET);
+      } else {
+        // Turn pump off
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET);
+      }
 	  }
 
 	  if(updateDisp == 1)
@@ -254,7 +251,7 @@ int main(void)
 				  lcd_clear ();
 				  lcd_put_cur(0, 0);
 				  lcd_send_string((char*)lcdBuf);
-				  sprintf(lcdBuf, "WaterLvl: %s", waterLevel[setLevel]);
+				  sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
 				  lcd_put_cur(1, 0);
 				  lcd_send_string((char*)lcdBuf);
 				  lcdToggle = 0;
@@ -652,8 +649,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //ADC1 Callback
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
 {
-    adc1Raw = HAL_ADC_GetValue(&hadc1);
-    adc1Flag = 1;
+    waterlevel_reading = HAL_ADC_GetValue(&hadc1);
 }
 
 
