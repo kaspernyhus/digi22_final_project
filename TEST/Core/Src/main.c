@@ -56,6 +56,8 @@ ADC_HandleTypeDef hadc1;
 
 I2C_HandleTypeDef hi2c1;
 
+IWDG_HandleTypeDef hiwdg;
+
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim15;
 
@@ -106,6 +108,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM15_Init(void);
+static void MX_IWDG_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -154,6 +157,7 @@ int main(void)
   MX_USART1_UART_Init();
   MX_TIM2_Init();
   MX_TIM15_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
@@ -215,7 +219,7 @@ int main(void)
 	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
 		  read_sensor_cnt = 0;
 		  HAL_ADC_Start_IT(&hadc1);
-	    bme280_read_all(&bme280_data);
+		  bme280_read_all(&bme280_data);
 
       water_level = check_water_level(waterlevel_reading);
       if (water_level == WATER_LEVEL_HIGH) {
@@ -236,65 +240,56 @@ int main(void)
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if (update_display_cnt >= DISPLAY_REFRESH_RATE) {
-		  update_display_cnt = 0;
-      switch (lcd_mode)
-      {
-      case LCD_MODE_TIME:
-        sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
-        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-        LOG(lcdBuf);
-        sprintf(lcdBuf, "Date: %d", gps_data.date);
-        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-        LOG(lcdBuf);
-        lcd_mode = LCD_MODE_GPS;
-        break;
-      case LCD_MODE_GPS:
-        if (!gps_active) {
-          lcd_mode = LCD_MODE_TEMP;
-        }
-        sprintf(lcdBuf, "Lati: %f", gps_data.lati);
-        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-        LOG(lcdBuf);
-        sprintf(lcdBuf, "Long: %f", gps_data.longi);
-        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-        LOG(lcdBuf);
-        lcd_mode = LCD_MODE_SPEED;
-        break;
-      case LCD_MODE_SPEED:
-        if (!gps_active) {
-          lcd_mode = LCD_MODE_TEMP;
-        }
-        sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
-        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-        LOG(lcdBuf);
-        sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
-        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-        LOG(lcdBuf);
-        lcd_mode = LCD_MODE_TEMP;
-        break;
-      case LCD_MODE_TEMP:
-        sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
-        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-        LOG(lcdBuf);
-        sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
-        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-        LOG(lcdBuf);
-        lcd_mode = LCD_MODE_WATER_LVL;
-        break;
-      case LCD_MODE_WATER_LVL:
-        sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
-        lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-        LOG(lcdBuf);
-        sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
-        lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-        LOG(lcdBuf);
-        lcd_mode = LCD_MODE_TIME;
-        break;
-      default:
-        break;
-      }
+	  if(updateDisp == 1) {
+		  updateDisp = 0;
+		  switch (lcd_mode)
+		  {
+			  case LCD_MODE_TIME:
+				sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.hours, gps_data.min , gps_data.sec);
+				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+				sprintf(lcdBuf, "Date: %d", gps_data.date);
+				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+				lcd_mode = LCD_MODE_GPS;
+				break;
+			  case LCD_MODE_GPS:
+				if (!gps_ready) {
+				  lcd_mode = LCD_MODE_TEMP;
+				}
+				sprintf(lcdBuf, "Lati: %f", gps_data.lati);
+				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+				sprintf(lcdBuf, "Long: %f", gps_data.longi);
+				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+				lcd_mode = LCD_MODE_SPEED;
+				break;
+			  case LCD_MODE_SPEED:
+				if (!gps_ready) {
+				  lcd_mode = LCD_MODE_TEMP;
+				}
+				sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
+				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+				sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
+				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+				lcd_mode = LCD_MODE_TEMP;
+				break;
+			  case LCD_MODE_TEMP:
+				sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
+				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+				sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
+				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+				lcd_mode = LCD_MODE_WATER_LVL;
+				break;
+			  case LCD_MODE_WATER_LVL:
+				sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
+				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+				sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
+				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+				lcd_mode = LCD_MODE_TIME;
+				break;
+			  default:
+				break;
+		  }
 	  }
+	  HAL_IWDG_Refresh(&hiwdg);	//Pet the watchdog
   }
   /* USER CODE END 3 */
 }
@@ -312,11 +307,13 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI
+                              |RCC_OSCILLATORTYPE_HSE;
   RCC_OscInitStruct.HSEState = RCC_HSE_ON;
   RCC_OscInitStruct.HSEPredivValue = RCC_HSE_PREDIV_DIV1;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
   RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
@@ -453,6 +450,35 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief IWDG Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_IWDG_Init(void)
+{
+
+  /* USER CODE BEGIN IWDG_Init 0 */
+
+  /* USER CODE END IWDG_Init 0 */
+
+  /* USER CODE BEGIN IWDG_Init 1 */
+
+  /* USER CODE END IWDG_Init 1 */
+  hiwdg.Instance = IWDG;
+  hiwdg.Init.Prescaler = IWDG_PRESCALER_128;
+  hiwdg.Init.Window = 4095;
+  hiwdg.Init.Reload = 3124;
+  if (HAL_IWDG_Init(&hiwdg) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN IWDG_Init 2 */
+
+  /* USER CODE END IWDG_Init 2 */
 
 }
 
