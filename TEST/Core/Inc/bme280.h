@@ -20,6 +20,9 @@
 
 #include <stdint.h>
 #include "stm32f3xx_hal.h"
+#include <stdbool.h>
+
+#define BME280_ID 0x60
 
 #define BME280_REGISTER_DIG_T1 0x88
 #define BME280_REGISTER_DIG_T2 0x8A
@@ -79,12 +82,18 @@ typedef enum {
 } bme280_mode_t;
 
 typedef struct {
+	float temperature;
+	float pressure;
+	float humidity;
+} bme280_data_t;
+
+typedef struct {
 	I2C_HandleTypeDef i2c;
 } bme280_t;
 
-void bme280_init(I2C_HandleTypeDef* i2c_handle);
+bool bme280_init(I2C_HandleTypeDef* i2c_handle);
 uint8_t bme280_whoami(void);
-void bme280_read_all(float* temperature, float* pressure, float* humidity);
+void bme280_read_all(bme280_data_t* sensor_data);
 
 
 #endif /* BME280_H_ */

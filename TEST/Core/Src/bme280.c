@@ -104,15 +104,18 @@ uint8_t bme280_whoami(void)
 	return chip_id;
 }
 
-void bme280_init(I2C_HandleTypeDef* i2c_handle)
+bool bme280_init(I2C_HandleTypeDef* i2c_handle)
 {
+	// Save pointer handle to I2C peripheral
 	_i2c = i2c_handle;
-
+	if (bme280_whoami() != BME280_ID) {
+		return false;
+	}
 	// Set values in control registers
 	bme280_force_measurement();
-
 	// Read chips NVM calibration data
 	bme280_read_calibration_data();
+	return true;
 }
 
 // Temperature in DegC, resolution 0.01 DegC.
@@ -173,7 +176,7 @@ float calculate_humidity(int32_t adc_H)
  * @param pressure
  * @param humidity
  */
-void bme280_read_all(float* temperature, float* pressure, float* humidity)
+void bme280_read_all(bme280_data_t* sensor_data)
 {
 	if (_i2c == NULL) {
 		return;

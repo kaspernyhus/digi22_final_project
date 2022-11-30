@@ -202,14 +202,10 @@ int main(void)
   lcd_clear ();
 
   // BME280
-  bme280_init(&hi2c1);
-  uint8_t bme280_ok = bme280_whoami();
-  if(bme280_ok == 0x60) {
+  if (bme280_init(&hi2c1)) {
     sprintf(uartBuf, "BME280 initialized\n");
-  } else {
-    sprintf(uartBuf, "BME280 initialization failed\n");
+    HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
   }
-  HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
 
   //Header for .csv logfile
   sprintf(logData, "Time,Latitude,Longitude,Date,Speed,Course");
@@ -227,9 +223,9 @@ int main(void)
 
     if(updateDisp == 1) {
     	updateDisp = 0;
-      float temp, hum, pres;
-      bme280_read_all(&temp, &pres, &hum);
-      sprintf(uartBuf, "Temp: %.2f DegC // Pres: %.2f hPa // Hum: %.2f %%RH\n", temp, pres, hum);
+      bme280_data_t bme280_data;
+      bme280_read_all(&bme280_data);
+      sprintf(uartBuf, "Temp: %.2f DegC // Pres: %.2f hPa // Hum: %.2f %%RH\n", bme280_data.temperature, bme280_data.pressure, bme280_data.humidity);
       HAL_UART_Transmit(&huart2, (uint8_t*)uartBuf, strlen(uartBuf), HAL_MAX_DELAY);
     }
 
