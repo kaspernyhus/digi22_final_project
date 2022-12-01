@@ -12,6 +12,7 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdint.h>
 #include "stm32f3xx_hal.h"
 
 typedef struct {
@@ -20,7 +21,7 @@ typedef struct {
 	int sec;
 } log_time_t;
 
-void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time);
+void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t* systicks);
 
 /**
  * @brief Logs a string to the terminal

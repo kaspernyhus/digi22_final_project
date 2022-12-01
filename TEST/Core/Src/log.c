@@ -14,6 +14,7 @@
 
 static UART_HandleTypeDef* _uart;
 static log_time_t* _time;
+static uint32_t* _systicks_cnt;
 
 /**
  * @brief Initialize logger
@@ -21,10 +22,11 @@ static log_time_t* _time;
  * @param uart_handle UART_HandleTypeDef to uart peripheral
  * @param time Pointer to time struct (hour:min:sec)
  */
-void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time)
+void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t* systicks_cnt)
 {
     _uart = uart_handle;
     _time = time;
+    _systicks_cnt = systicks_cnt;
 }
 
 /**
@@ -34,10 +36,12 @@ void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time)
  */
 void LOG(char* str)
 {
-  char time[19];
-  sprintf(time, "(%.2d:%.2d:%.2d): ", _time->hours, _time->min, _time->sec);
-  size_t str_length = strlen(str);
-  HAL_UART_Transmit(_uart, (uint8_t*)time, 12, 100);
-  HAL_UART_Transmit(_uart, (uint8_t*)str, str_length, 100);
+  char pre_log[40];
+
+  // sprintf(time, "[%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
+  // HAL_UART_Transmit(_uart, (uint8_t*)time, 22, 100);
+  sprintf(pre_log, "[%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
+  HAL_UART_Transmit(_uart, (uint8_t*)pre_log, strlen(pre_log), 100);
+  HAL_UART_Transmit(_uart, (uint8_t*)str, strlen(str), 100);
   HAL_UART_Transmit(_uart, (uint8_t*)"\r\n", 2, 100);
 }

@@ -41,6 +41,9 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define TIMEZONEDIFF 1
+#define SYS_TICK_INTERVAL_MS 200
+#define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
+#define SENSOR_READ_RATE 1000/SYS_TICK_INTERVAL_MS
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -50,8 +53,11 @@
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
+
 I2C_HandleTypeDef hi2c1;
+
 TIM_HandleTypeDef htim2;
+
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
@@ -76,15 +82,15 @@ water_level_t water_level = WATER_LEVEL_LOW;
 
 // Systick
 volatile uint8_t systick = 0;
-static uint8_t systick_cnt = 0;
+uint32_t systick_cnt = 0;
 
 // Flags
 volatile uint8_t gps_data_ready = 0;
 static uint8_t gps_active = 0;
-static uint8_t updateDisp = 0;
-static uint8_t read_sensor = 0;
-static uint8_t check_water_lvl = 0;
 static uint8_t log_data = 0;
+static uint8_t update_display_cnt = 0;
+static uint8_t read_sensor_cnt = 0;
+static uint8_t check_water_lvl_cnt = 0;
 
 
 /* USER CODE END PV */
@@ -117,6 +123,7 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	char logData[100];
 	lcd_mode_t lcd_mode = LCD_MODE_TIME;
+  assert(SENSOR_READ_RATE != 0);
 
   /* USER CODE END 1 */
 
@@ -150,7 +157,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
   HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
 
-  LOG_init(&huart2, (log_time_t*)&gps_data.time);
+  LOG_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
   // Start message
   LOG("Boat-log ON!");
@@ -181,17 +188,11 @@ int main(void)
   {
     if (systick) {
       systick = 0;
-
-      alert_tick();
-
-      updateDisp = 1;
       systick_cnt++;
-      if(systick_cnt >= 5)
-      {
-        read_sensor = 1;
-        systick_cnt = 0;
-      }
-
+      update_display_cnt++;
+      read_sensor_cnt++;
+      check_water_lvl_cnt++;
+      alert_tick();
     }
     /* USER CODE END WHILE */
 
@@ -209,10 +210,18 @@ int main(void)
       }
 	  }
 
-	  if(read_sensor) {
-		  read_sensor = 0;
+	  if(read_sensor_cnt >= SENSOR_READ_RATE) {
+		  read_sensor_cnt = 0;
 		  HAL_ADC_Start_IT(&hadc1);
 	    bme280_read_all(&bme280_data);
+
+      water_level = check_water_level(waterlevel_reading);
+      if (water_level == WATER_LEVEL_HIGH) {
+        // TODO: Turn on pump relay
+      } else {
+        // TODO: Turn pump relay off
+      }
+
       alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
       log_data = 1;
     }
@@ -225,18 +234,8 @@ int main(void)
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if(check_water_lvl == 1) {
-      check_water_lvl = 0;
-      water_level = check_water_level(waterlevel_reading);
-      if (water_level == WATER_LEVEL_HIGH) {
-        // TODO: Turn on pump relay
-      } else {
-        // TODO: Turn pump relay off
-      }
-	  }
-
-	  if(updateDisp == 1) {
-		  updateDisp = 0;
+	  if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
+		  update_display_cnt = 0;
       switch (lcd_mode)
       {
       case LCD_MODE_TIME:
@@ -473,9 +472,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 1000;
+  htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 144000;
+  htim2.Init.Period = 200000;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -636,7 +635,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
