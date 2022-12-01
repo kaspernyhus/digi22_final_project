@@ -208,18 +208,18 @@ int main(void)
 		  gps_data_ready = 0;
 		  getLocation(&gps_data, rxData);
 		  if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
-			  gps_ready = 1;
+			  gps_active = 1;
 			  gps_data.date = rolloverDateConvertion(gps_data.date);
 			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
 		  } else {
-			  gps_ready = 0;
+			  gps_active = 0;
 		  }
 	  }
 
 	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
-		  read_sensor_cnt = 0;
-		  HAL_ADC_Start_IT(&hadc1);
-		  bme280_read_all(&bme280_data);
+      read_sensor_cnt = 0;
+      HAL_ADC_Start_IT(&hadc1);
+      bme280_read_all(&bme280_data);
 
       water_level = check_water_level(waterlevel_reading);
       if (water_level == WATER_LEVEL_HIGH) {
@@ -240,53 +240,53 @@ int main(void)
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if(updateDisp == 1) {
-		  updateDisp = 0;
+	  if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
+		  update_display_cnt = 0;
 		  switch (lcd_mode)
 		  {
 			  case LCD_MODE_TIME:
-				if (gps_ready == 0) {
-					sprintf(lcdBuf, "NO GPS LOCK!");
-					lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-					lcd_mode = LCD_MODE_TEMP;
-				  	break;
-				}
-				sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.hours, gps_data.min , gps_data.sec);
-				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				sprintf(lcdBuf, "Date: %d", gps_data.date);
-				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				lcd_mode = LCD_MODE_GPS;
-				break;
+          if (gps_active == 0) {
+            sprintf(lcdBuf, "NO GPS LOCK!");
+            lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+            lcd_mode = LCD_MODE_TEMP;
+            break;
+          }
+          sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
+          lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          sprintf(lcdBuf, "Date: %d", gps_data.date);
+          lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          lcd_mode = LCD_MODE_GPS;
+          break;
 			  case LCD_MODE_GPS:
-				sprintf(lcdBuf, "Lati: %f", gps_data.lati);
-				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				sprintf(lcdBuf, "Long: %f", gps_data.longi);
-				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				lcd_mode = LCD_MODE_SPEED;
-				break;
+          sprintf(lcdBuf, "Lati: %f", gps_data.lati);
+          lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          sprintf(lcdBuf, "Long: %f", gps_data.longi);
+          lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          lcd_mode = LCD_MODE_SPEED;
+          break;
 			  case LCD_MODE_SPEED:
-				sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
-				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
-				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				lcd_mode = LCD_MODE_TEMP;
-				break;
+          sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
+          lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
+          lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          lcd_mode = LCD_MODE_TEMP;
+          break;
 			  case LCD_MODE_TEMP:
-				sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
-				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
-				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				lcd_mode = LCD_MODE_WATER_LVL;
-				break;
+          sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
+          lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
+          lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          lcd_mode = LCD_MODE_WATER_LVL;
+          break;
 			  case LCD_MODE_WATER_LVL:
-				sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
-				lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
-				lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				lcd_mode = LCD_MODE_TIME;
-				break;
+          sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
+          lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
+          lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          lcd_mode = LCD_MODE_TIME;
+          break;
 			  default:
-				lcd_mode = LCD_MODE_TIME;
+				  lcd_mode = LCD_MODE_TIME;
 				break;
 		  }
 	  }
