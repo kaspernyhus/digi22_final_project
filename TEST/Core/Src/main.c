@@ -24,11 +24,13 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include "log.h"
 #include "i2c-lcd.h"
 #include "openlog_STM32.h"
 #include "bme280.h"
 #include "nmea_gps.h"
 #include "water_level.h"
+#include "alert.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -64,25 +66,20 @@ typedef enum {
   LCD_MODE_WATER_LVL
 } lcd_mode_t;
 
-typedef enum {
-  NO_DISASTER_DETECTED,
-  DISASTER_DETECTED
-} disaster_state_t;
-
 uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
 gps_data_t gps_data; // parsed gps data
 uint8_t gps_ready = 0;
 
 char lcdBuf[20];
+volatile uint8_t systick = 0;
+volatile uint8_t systick_cnt = 0;
 volatile uint8_t updateDisp = 0;
 volatile uint8_t doMeasurement = 0;
-volatile uint8_t cnt = 0;
 uint8_t waterLevelFlag = 0;
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
 bme280_data_t bme280_data;
-disaster_state_t disaster_state = NO_DISASTER_DETECTED;
 
 /* USER CODE END PV */
 
@@ -98,30 +95,10 @@ static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
-void led_state(uint8_t state)
-{
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, state);
-}
-
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
-/**
- * @brief Log a string to the terminal
- *
- * @param str
- */
-void LOG(char* str)
-{
-  char time[19];
-  sprintf(time, "(%.2d:%.2d:%.2d): ", gps_data.hours, gps_data.min, gps_data.sec);
-  size_t str_length = strlen(str);
-  HAL_UART_Transmit(&huart2, (uint8_t*)time, 12, 100);
-  HAL_UART_Transmit(&huart2, (uint8_t*)str, str_length, 100);
-  HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100);
-}
 
 /* USER CODE END 0 */
 
@@ -167,6 +144,8 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
   HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
 
+  LOG_init(&huart2);
+
   // Start message
   LOG("Boat-log ON!");
 
@@ -186,16 +165,32 @@ int main(void)
   sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl");
   openlogAppendFile("log1.csv", logData);
 
+  alert_init();
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+    if (systick) {
+      systick = 0;
 
+      alert_tick();
+
+      updateDisp = 1;
+      systick_cnt++;
+      if(systick_cnt >= 5)
+      {
+        doMeasurement = 1;
+        systick_cnt = 0;
+      }
+
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
 	  if(gpsFlag == 1)
 	  {
 		  gpsFlag = 0;
@@ -214,6 +209,7 @@ int main(void)
 		  doMeasurement = 0;
 		  HAL_ADC_Start_IT(&hadc1);
 	    bme280_read_all(&bme280_data);
+      alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
 
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
@@ -632,7 +628,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  // HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -654,13 +650,7 @@ static void MX_GPIO_Init(void)
 //Timer 2 interrupt service routine
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-    updateDisp = 1;
-    cnt++;
-    if(cnt >= 5)
-    {
-    	doMeasurement = 1;
-    	cnt = 0;
-    }
+    systick = 1;
 }
 
 //UART Callback
