@@ -14,8 +14,13 @@
 #include <stdio.h>
 #include "stm32f3xx_hal.h"
 
+typedef struct {
+    int hours;
+	int min;
+	int sec;
+} log_time_t;
 
-void LOG_init(UART_HandleTypeDef* uart_handle);
+void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time);
 
 /**
  * @brief Logs a string to the terminal

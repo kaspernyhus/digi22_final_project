@@ -24,6 +24,8 @@ typedef enum {
   ALERT_HIGH
 } alert_state_t;
 
+static const char* const alert_state_name[3] = {"ALERT_NORMAL", "ALERT_LOW", "ALERT_HIGH"};
+
 typedef enum {
     ALERT_TEMPERATURE,
 
@@ -32,4 +34,3 @@ typedef enum {
 void alert_init(void);
 void alert_tick(void);
 void alert_check(float value, alert_type_t type);
-

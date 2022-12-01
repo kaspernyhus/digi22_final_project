@@ -68,7 +68,7 @@ typedef enum {
 
 uint8_t rxData[750]; // Buffer to hold raw gps data
 volatile uint8_t gpsFlag = 0;
-gps_data_t gps_data; // parsed gps data
+gps_data_t gps_data = {.time.hours = 12, .time.min = 32, .time.sec = 8}; // parsed gps data
 uint8_t gps_ready = 0;
 
 char lcdBuf[20];
@@ -144,7 +144,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
   HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
 
-  LOG_init(&huart2);
+  LOG_init(&huart2, (log_time_t*)&gps_data.time);
 
   // Start message
   LOG("Boat-log ON!");
@@ -213,7 +213,7 @@ int main(void)
 
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
-        gps_data.hours, gps_data.min, gps_data.sec, gps_data.date, gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
+        gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date, gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
       openlogAppendFile("log1.csv", logData);
 	  }
 
@@ -232,7 +232,7 @@ int main(void)
       switch (lcd_mode)
       {
       case LCD_MODE_TIME:
-        sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.hours, gps_data.min , gps_data.sec);
+        sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
         lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
         LOG(lcdBuf);
         sprintf(lcdBuf, "Date: %d", gps_data.date);

@@ -13,17 +13,16 @@
 extern UART_HandleTypeDef huart2;
 #define TIMEZONEDIFF 1
 
-void formatData(gps_data_t* gps_data)
+void formatData(float time, gps_data_t* gps_data)
 {
+	gps_data->time.hours = (int)time/10000;
+	gps_data->time.min = (int)(time-(gps_data->time.hours*10000))/100;
+	gps_data->time.sec = (int)(time-((gps_data->time.hours*10000)+(gps_data->time.min*100)));
 
-	gps_data->hours = (int)gps_data->time/10000;
-	gps_data->min = (int)(gps_data->time-(gps_data->hours*10000))/100;
-	gps_data->sec = (int)(gps_data->time-((gps_data->hours*10000)+(gps_data->min*100)));
-
-	gps_data->hours += TIMEZONEDIFF;
-	if(gps_data->hours > 23)
+	gps_data->time.hours += TIMEZONEDIFF;
+	if(gps_data->time.hours > 23)
 	{
-		gps_data->hours = 0;
+		gps_data->time.hours = 0;
 		gps_data->date += 10000;
 	}
 }
@@ -48,8 +47,9 @@ void getLocation(gps_data_t* gps_data, uint8_t* rxData)
 				break;
 			}
 		}
-		sscanf(gpsPayload, "GPRMC,%f,A,%f,N,%f,E,%f,%f,%u,", &gps_data->time, &gps_data->lati, &gps_data->longi, &gps_data->speed, &gps_data->course, &gps_data->date);
-		formatData(gps_data);
+		float gps_time;
+		sscanf(gpsPayload, "GPRMC,%f,A,%f,N,%f,E,%f,%f,%u,", &gps_time, &gps_data->lati, &gps_data->longi, &gps_data->speed, &gps_data->course, &gps_data->date);
+		formatData(gps_time, gps_data);
 		HAL_Delay(1);
 	}
 }

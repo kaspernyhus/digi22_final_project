@@ -13,11 +13,13 @@
 #include <string.h>
 
 static UART_HandleTypeDef* _uart;
+static log_time_t* _time;
 
 
-void LOG_init(UART_HandleTypeDef* uart_handle)
+void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time)
 {
     _uart = uart_handle;
+    _time = time;
 }
 
 /**
@@ -27,10 +29,10 @@ void LOG_init(UART_HandleTypeDef* uart_handle)
  */
 void LOG(char* str)
 {
-//   char time[19];
-//   sprintf(time, "(%.2d:%.2d:%.2d): ", gps_data.hours, gps_data.min, gps_data.sec);
+  char time[19];
+  sprintf(time, "(%.2d:%.2d:%.2d): ", _time->hours, _time->min, _time->sec);
   size_t str_length = strlen(str);
-//   HAL_UART_Transmit(&huart2, (uint8_t*)time, 12, 100);
+  HAL_UART_Transmit(_uart, (uint8_t*)time, 12, 100);
   HAL_UART_Transmit(_uart, (uint8_t*)str, str_length, 100);
   HAL_UART_Transmit(_uart, (uint8_t*)"\r\n", 2, 100);
 }

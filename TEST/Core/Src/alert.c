@@ -22,8 +22,8 @@ static void change_state(alert_state_t new_state)
 {
     if (new_state != current_alert_state) {
         current_alert_state = new_state;
-        char buf[20];
-        sprintf(buf, "New alert state: %d", current_alert_state);
+        char buf[35];
+        sprintf(buf, "New alert state: %s", alert_state_name[current_alert_state]);
         LOG(buf);
     }
 }
