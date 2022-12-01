@@ -66,20 +66,26 @@ typedef enum {
   LCD_MODE_WATER_LVL
 } lcd_mode_t;
 
+// Buffers
 uint8_t rxData[750]; // Buffer to hold raw gps data
-volatile uint8_t gpsFlag = 0;
-gps_data_t gps_data = {.time.hours = 12, .time.min = 32, .time.sec = 8}; // parsed gps data
-uint8_t gps_ready = 0;
-
 char lcdBuf[20];
-volatile uint8_t systick = 0;
-volatile uint8_t systick_cnt = 0;
-volatile uint8_t updateDisp = 0;
-volatile uint8_t doMeasurement = 0;
-uint8_t waterLevelFlag = 0;
+bme280_data_t bme280_data;
+gps_data_t gps_data = {.time.hours = 12, .time.min = 32, .time.sec = 8}; // parsed gps data
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
-bme280_data_t bme280_data;
+
+// Systick
+volatile uint8_t systick = 0;
+static uint8_t systick_cnt = 0;
+
+// Flags
+volatile uint8_t gps_data_ready = 0;
+static uint8_t gps_active = 0;
+static uint8_t updateDisp = 0;
+static uint8_t read_sensor = 0;
+static uint8_t check_water_lvl = 0;
+static uint8_t log_data = 0;
+
 
 /* USER CODE END PV */
 
@@ -182,7 +188,7 @@ int main(void)
       systick_cnt++;
       if(systick_cnt >= 5)
       {
-        doMeasurement = 1;
+        read_sensor = 1;
         systick_cnt = 0;
       }
 
@@ -191,34 +197,36 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
 
-	  if(gpsFlag == 1)
-	  {
-		  gpsFlag = 0;
+	  if(gps_data_ready) {
+		  gps_data_ready = 0;
 		  getLocation(&gps_data, rxData);
 		  gps_data.date = rolloverDateConvertion(gps_data.date);
       gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
       if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
-        gps_ready = 1;
+        gps_active = 1;
       } else {
-        gps_ready = 0;
+        gps_active = 0;
       }
 	  }
 
-	  if(doMeasurement == 1)
-	  {
-		  doMeasurement = 0;
+	  if(read_sensor) {
+		  read_sensor = 0;
 		  HAL_ADC_Start_IT(&hadc1);
 	    bme280_read_all(&bme280_data);
       alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
+      log_data = 1;
+    }
 
+    if (log_data) {
+      log_data = 0;
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
         gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date, gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if(waterLevelFlag == 1) {
-      waterLevelFlag = 0;
+	  if(check_water_lvl == 1) {
+      check_water_lvl = 0;
       water_level = check_water_level(waterlevel_reading);
       if (water_level == WATER_LEVEL_HIGH) {
         // TODO: Turn on pump relay
@@ -241,7 +249,7 @@ int main(void)
         lcd_mode = LCD_MODE_GPS;
         break;
       case LCD_MODE_GPS:
-        if (!gps_ready) {
+        if (!gps_active) {
           lcd_mode = LCD_MODE_TEMP;
         }
         sprintf(lcdBuf, "Lati: %f", gps_data.lati);
@@ -253,7 +261,7 @@ int main(void)
         lcd_mode = LCD_MODE_SPEED;
         break;
       case LCD_MODE_SPEED:
-        if (!gps_ready) {
+        if (!gps_active) {
           lcd_mode = LCD_MODE_TEMP;
         }
         sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
@@ -656,7 +664,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 //UART Callback
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	gpsFlag = 1;
+	gps_data_ready = 1;
 }
 
 //ADC1 Callback

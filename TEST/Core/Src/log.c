@@ -15,7 +15,12 @@
 static UART_HandleTypeDef* _uart;
 static log_time_t* _time;
 
-
+/**
+ * @brief Initialize logger
+ *
+ * @param uart_handle UART_HandleTypeDef to uart peripheral
+ * @param time Pointer to time struct (hour:min:sec)
+ */
 void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time)
 {
     _uart = uart_handle;
