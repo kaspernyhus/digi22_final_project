@@ -27,15 +27,19 @@ static void change_state(alert_state_t new_state)
         {
         case ALERT_NORMAL:
             __HAL_TIM_SET_AUTORELOAD(_tim, NORMAL_RATE);
+            __HAL_TIM_SET_COUNTER(_tim, 0);
             break;
         case ALERT_LOW:
             __HAL_TIM_SET_AUTORELOAD(_tim, LOW_ALERT_RATE);
+            __HAL_TIM_SET_COUNTER(_tim, 0);
             break;
         case ALERT_HIGH:
             __HAL_TIM_SET_AUTORELOAD(_tim, HIGH_ALERT_RATE);
+            __HAL_TIM_SET_COUNTER(_tim, 0);
             break;
         default:
             __HAL_TIM_SET_AUTORELOAD(_tim, NORMAL_RATE);
+            __HAL_TIM_SET_COUNTER(_tim, 0);
             break;
         }
     }
