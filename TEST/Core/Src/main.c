@@ -106,9 +106,9 @@ static void MX_ADC1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USART1_UART_Init(void);
-static void MX_TIM2_Init(void);
-static void MX_TIM15_Init(void);
 static void MX_IWDG_Init(void);
+static void MX_TIM15_Init(void);
+static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -127,7 +127,6 @@ int main(void)
   /* USER CODE BEGIN 1 */
 	char logData[100];
 	lcd_mode_t lcd_mode = LCD_MODE_TIME;
-  assert(SENSOR_READ_RATE != 0);
 
   /* USER CODE END 1 */
 
@@ -155,9 +154,9 @@ int main(void)
   MX_I2C1_Init();
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
-  MX_TIM2_Init();
-  MX_TIM15_Init();
   MX_IWDG_Init();
+  MX_TIM15_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
@@ -184,8 +183,10 @@ int main(void)
   //Header for .csv logfile
   sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl");
   openlogAppendFile("log1.csv", logData);
+  LOG("Started OpenLog file");
 
   alert_init(&htim15);
+  LOG("Initialized alert system");
 
   /* USER CODE END 2 */
 
@@ -248,41 +249,52 @@ int main(void)
           if (gps_active == 0) {
             sprintf(lcdBuf, "NO GPS LOCK!");
             lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+            LOG(lcdBuf);
             lcd_mode = LCD_MODE_TEMP;
             break;
           }
           sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          LOG(lcdBuf);
           sprintf(lcdBuf, "Date: %d", gps_data.date);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          LOG(lcdBuf);
           lcd_mode = LCD_MODE_GPS;
           break;
 			  case LCD_MODE_GPS:
           sprintf(lcdBuf, "Lati: %f", gps_data.lati);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          LOG(lcdBuf);
           sprintf(lcdBuf, "Long: %f", gps_data.longi);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          LOG(lcdBuf);
           lcd_mode = LCD_MODE_SPEED;
           break;
 			  case LCD_MODE_SPEED:
           sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          LOG(lcdBuf);
           sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          LOG(lcdBuf);
           lcd_mode = LCD_MODE_TEMP;
           break;
 			  case LCD_MODE_TEMP:
           sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          LOG(lcdBuf);
           sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          LOG(lcdBuf);
           lcd_mode = LCD_MODE_WATER_LVL;
           break;
 			  case LCD_MODE_WATER_LVL:
           sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+          LOG(lcdBuf);
           sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+          LOG(lcdBuf);
           lcd_mode = LCD_MODE_TIME;
           break;
 			  default:
