@@ -71,12 +71,12 @@ void alert_check(float value, alert_type_t type)
     switch (type)
     {
     case ALERT_TEMPERATURE:
-        if (value > TEMPERATURE_LOW_ALERT) {
+        if (value < TEMPERATURE_LOW_ALERT) {
+            change_state(ALERT_NORMAL);
+        } else if ((value > TEMPERATURE_LOW_ALERT) && (value < TEMPERATURE_HIGH_ALERT)) {
             change_state(ALERT_LOW);
         } else if (value > TEMPERATURE_HIGH_ALERT) {
             change_state(ALERT_HIGH);
-        } else {
-            change_state(ALERT_NORMAL);
         }
         break;
 
