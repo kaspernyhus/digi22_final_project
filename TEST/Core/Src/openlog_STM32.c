@@ -16,7 +16,7 @@ void openlogCmdMode()
 {
 	uint8_t cmdBuf[3] = {0x1A, 0x1A, 0x1A};
 
-    HAL_UART_Transmit(&huart3, (uint8_t*)cmdBuf, 3, 100);
+    HAL_UART_Transmit(&huart3, (uint8_t*)cmdBuf, 3, 1000);
     HAL_Delay(30);
 }
 
@@ -28,11 +28,11 @@ void openlogWriteStr(char* string)
 	uint8_t crBuf[1] = {0x0D};
 	char* p = string;
 	while(*p != '\0') {
-		HAL_UART_Transmit(&huart3, (uint8_t*)p, 1, 100);
+		HAL_UART_Transmit(&huart3, (uint8_t*)p, 1, 1000);
 		p++;
 		HAL_Delay(5);
 	}
-	HAL_UART_Transmit(&huart3, (uint8_t*)crBuf, 1, 100);
+	HAL_UART_Transmit(&huart3, (uint8_t*)crBuf, 1, 1000);
 	HAL_Delay(5);
 }
 

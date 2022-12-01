@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <assert.h>
+//#include <assert.h>
 #include "stm32f3xx_hal.h"
 
 typedef struct {

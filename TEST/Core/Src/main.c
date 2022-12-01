@@ -40,10 +40,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define TIMEZONEDIFF 1
 #define SYS_TICK_INTERVAL_MS 200
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
-#define SENSOR_READ_RATE 1000/SYS_TICK_INTERVAL_MS
+#define SENSOR_READ_RATE 10000/SYS_TICK_INTERVAL_MS
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -82,6 +81,7 @@ bme280_data_t bme280_data;
 gps_data_t gps_data = {.time.hours = 12, .time.min = 32, .time.sec = 8}; // parsed gps data
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
+uint16_t adcCh2 = 0;
 
 // Systick
 volatile uint8_t systick = 0;
@@ -92,7 +92,7 @@ volatile uint8_t gps_data_ready = 0;
 static uint8_t gps_active = 0;
 static uint8_t log_data = 0;
 static uint8_t update_display_cnt = 0;
-static uint8_t read_sensor_cnt = 0;
+static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t check_water_lvl_cnt = 0;
 
 /* USER CODE END PV */
@@ -161,7 +161,7 @@ int main(void)
 
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
   HAL_TIM_Base_Start_IT(&htim15);
-  HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
+  HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 235);	//Init GPS uart data to DMA
 
   LOG_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
@@ -219,7 +219,13 @@ int main(void)
 
 	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
       read_sensor_cnt = 0;
-      HAL_ADC_Start_IT(&hadc1);
+      HAL_ADC_Start(&hadc1);
+      HAL_ADC_PollForConversion(&hadc1, 1000);
+      waterlevel_reading = HAL_ADC_GetValue(&hadc1);
+      HAL_ADC_Start(&hadc1);
+      HAL_ADC_PollForConversion(&hadc1, 1000);
+      adcCh2 = HAL_ADC_GetValue(&hadc1);
+
       bme280_read_all(&bme280_data);
 
       water_level = check_water_level(waterlevel_reading);
@@ -236,7 +242,7 @@ int main(void)
     if (log_data) {
       log_data = 0;
       // Save formatted data to OpenLog
-		  sprintf(logData, "%02d:%02d:%02d,%d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
+		  sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s",
         gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date, gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature, bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level]);
       openlogAppendFile("log1.csv", logData);
 	  }
@@ -256,16 +262,16 @@ int main(void)
           sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
           LOG(lcdBuf);
-          sprintf(lcdBuf, "Date: %d", gps_data.date);
+          sprintf(lcdBuf, "Date: %06d", gps_data.date);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
           LOG(lcdBuf);
           lcd_mode = LCD_MODE_GPS;
           break;
 			  case LCD_MODE_GPS:
-          sprintf(lcdBuf, "Lati: %f", gps_data.lati);
+          sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
           lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
           LOG(lcdBuf);
-          sprintf(lcdBuf, "Long: %f", gps_data.longi);
+          sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
           lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
           LOG(lcdBuf);
           lcd_mode = LCD_MODE_SPEED;
@@ -384,13 +390,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
+  hadc1.Init.ScanConvMode = ADC_SCAN_ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
+  hadc1.Init.DiscontinuousConvMode = ENABLE;
+  hadc1.Init.NbrOfDiscConversion = 1;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
   hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.NbrOfConversion = 1;
+  hadc1.Init.NbrOfConversion = 2;
   hadc1.Init.DMAContinuousRequests = DISABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   hadc1.Init.LowPowerAutoWait = DISABLE;
@@ -408,6 +415,15 @@ static void MX_ADC1_Init(void)
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   sConfig.OffsetNumber = ADC_OFFSET_NONE;
   sConfig.Offset = 0;
+  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+  /** Configure Regular Channel
+  */
+  sConfig.Channel = ADC_CHANNEL_2;
+  sConfig.Rank = ADC_REGULAR_RANK_2;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();
@@ -764,10 +780,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 }
 
 //ADC1 Callback
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
-{
-    waterlevel_reading = HAL_ADC_GetValue(&hadc1);
-}
+//void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+//{
+//    waterlevel_reading = HAL_ADC_GetValue(&hadc1);
+//}
 
 
 /* USER CODE END 4 */
