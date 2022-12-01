@@ -10,13 +10,10 @@
  */
 
 #include "alert.h"
-#include "stm32f3xx_hal.h"
 #include "log.h"
 
-static int tick_count = 0;
-static uint8_t led_state = 0;
-static uint8_t alert_tick_num;
 alert_state_t current_alert_state = ALERT_HIGH;
+TIM_HandleTypeDef* _tim;
 
 static void change_state(alert_state_t new_state)
 {
@@ -25,47 +22,37 @@ static void change_state(alert_state_t new_state)
         char buf[35];
         sprintf(buf, "New alert state: %s", alert_state_name[current_alert_state]);
         LOG(buf);
-    }
-}
 
-void alert_init(void)
-{
-    change_state(ALERT_NORMAL);
-}
-
-void alert_tick(void)
-{
-    switch (current_alert_state)
-    {
-    case ALERT_NORMAL:
-        alert_tick_num = NORMAL_TICKS;
-        break;
-    case ALERT_LOW:
-        alert_tick_num = LOW_ALERT_TICKS;
-        break;
-    case ALERT_HIGH:
-        alert_tick_num = HIGH_ALERT_TICKS;
-        break;
-
-    default:
-        break;
-    }
-
-    if (tick_count > alert_tick_num) {
-        tick_count = 0;
-        if (led_state) {
-            led_state = 0;
-            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, RESET);
-        }
-        else {
-            led_state = 1;
-            HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, SET);
+        switch (current_alert_state)
+        {
+        case ALERT_NORMAL:
+            __HAL_TIM_SET_AUTORELOAD(_tim, NORMAL_RATE);
+            break;
+        case ALERT_LOW:
+            __HAL_TIM_SET_AUTORELOAD(_tim, LOW_ALERT_RATE);
+            break;
+        case ALERT_HIGH:
+            __HAL_TIM_SET_AUTORELOAD(_tim, HIGH_ALERT_RATE);
+            break;
+        default:
+            __HAL_TIM_SET_AUTORELOAD(_tim, NORMAL_RATE);
+            break;
         }
     }
-
-    tick_count++;
 }
 
+void alert_init(TIM_HandleTypeDef* timer_handle)
+{
+    _tim = timer_handle;
+    change_state(ALERT_HIGH);
+}
+
+/**
+ * @brief Checks if a value is consideret a hazard
+ *
+ * @param value float value of measured data
+ * @param type type of measurement
+ */
 void alert_check(float value, alert_type_t type)
 {
     switch (type)

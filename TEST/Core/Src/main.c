@@ -57,6 +57,7 @@ ADC_HandleTypeDef hadc1;
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim15;
 
 UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
@@ -92,7 +93,6 @@ static uint8_t update_display_cnt = 0;
 static uint8_t read_sensor_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
 
-
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -105,6 +105,7 @@ static void MX_I2C1_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
+static void MX_TIM15_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -152,9 +153,11 @@ int main(void)
   MX_USART3_UART_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
+  MX_TIM15_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
+  HAL_TIM_Base_Start_IT(&htim15);
   HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
 
   LOG_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
@@ -178,7 +181,7 @@ int main(void)
   sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl");
   openlogAppendFile("log1.csv", logData);
 
-  alert_init();
+  alert_init(&htim15);
 
   /* USER CODE END 2 */
 
@@ -192,13 +195,12 @@ int main(void)
       update_display_cnt++;
       read_sensor_cnt++;
       check_water_lvl_cnt++;
-      alert_tick();
     }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 
-	  if(gps_data_ready) {
+	  if (gps_data_ready) {
 		  gps_data_ready = 0;
 		  getLocation(&gps_data, rxData);
 		  gps_data.date = rolloverDateConvertion(gps_data.date);
@@ -210,7 +212,7 @@ int main(void)
       }
 	  }
 
-	  if(read_sensor_cnt >= SENSOR_READ_RATE) {
+	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
 		  read_sensor_cnt = 0;
 		  HAL_ADC_Start_IT(&hadc1);
 	    bme280_read_all(&bme280_data);
@@ -234,7 +236,7 @@ int main(void)
       openlogAppendFile("log1.csv", logData);
 	  }
 
-	  if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
+	  if (update_display_cnt >= DISPLAY_REFRESH_RATE) {
 		  update_display_cnt = 0;
       switch (lcd_mode)
       {
@@ -337,9 +339,10 @@ void SystemClock_Config(void)
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1
-                              |RCC_PERIPHCLK_ADC1;
+                              |RCC_PERIPHCLK_TIM15|RCC_PERIPHCLK_ADC1;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK1;
   PeriphClkInit.I2c1ClockSelection = RCC_I2C1CLKSOURCE_HSI;
+  PeriphClkInit.Tim15ClockSelection = RCC_TIM15CLK_HCLK;
   PeriphClkInit.Adc1ClockSelection = RCC_ADC1PLLCLK_DIV1;
 
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
@@ -474,7 +477,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 200000;
+  htim2.Init.Period = 200000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -495,6 +498,52 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM15 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM15_Init(void)
+{
+
+  /* USER CODE BEGIN TIM15_Init 0 */
+
+  /* USER CODE END TIM15_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM15_Init 1 */
+
+  /* USER CODE END TIM15_Init 1 */
+  htim15.Instance = TIM15;
+  htim15.Init.Prescaler = 7200-1;
+  htim15.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim15.Init.Period = 20000-1;
+  htim15.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim15.Init.RepetitionCounter = 0;
+  htim15.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim15) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim15, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim15, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM15_Init 2 */
+
+  /* USER CODE END TIM15_Init 2 */
 
 }
 
@@ -654,10 +703,19 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 //*****ISR FUNCTIONS*****
-//Timer 2 interrupt service routine
+
+//Timers interrupt service routine
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 {
-    systick = 1;
+    // Timer2
+    if (htim == &htim2) {
+      systick = 1;
+    }
+
+    // Timer15
+    if (htim == &htim15) {
+      HAL_GPIO_TogglePin(GPIOB, GPIO_PIN_13);
+    }
 }
 
 //UART Callback

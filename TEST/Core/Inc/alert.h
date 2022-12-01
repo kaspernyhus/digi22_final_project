@@ -11,12 +11,14 @@
 
 #pragma once
 
-#define NORMAL_TICKS 4
-#define LOW_ALERT_TICKS 2
-#define HIGH_ALERT_TICKS 1
+#include "stm32f3xx_hal.h"
+
+#define NORMAL_RATE 30000-1
+#define LOW_ALERT_RATE 2000-1
+#define HIGH_ALERT_RATE 600-1
 
 #define TEMPERATURE_LOW_ALERT 25.0
-#define TEMPERATURE_HIGH_ALERT 28.0
+#define TEMPERATURE_HIGH_ALERT 27.0
 
 typedef enum {
   ALERT_NORMAL,
@@ -31,6 +33,5 @@ typedef enum {
 
 } alert_type_t;
 
-void alert_init(void);
-void alert_tick(void);
+void alert_init(TIM_HandleTypeDef* timer_handle);
 void alert_check(float value, alert_type_t type);
