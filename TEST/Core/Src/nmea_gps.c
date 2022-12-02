@@ -27,13 +27,11 @@ void formatData(float time, gps_data_t* gps_data)
 	}
 }
 
-getLocation(gps_data_t* gps_data, uint8_t* rxData)
+void getLocation(gps_data_t* gps_data, char* rxData)
 {
-	char txData[750];
 	char gpsPayload[100];
 	int msgIndex = 0;
-	strcpy(txData, (char*)(rxData));
-	char *ptr = strstr(txData, "GPRMC");
+	char *ptr = strstr(rxData, "GPRMC");
 	if(*ptr == 'G')
 	{
 		while(1)
@@ -50,7 +48,6 @@ getLocation(gps_data_t* gps_data, uint8_t* rxData)
 		float gps_time;
 		sscanf(gpsPayload, "GPRMC,%f,A,%f,N,%f,E,%f,%f,%u,", &gps_time, &gps_data->lati, &gps_data->longi, &gps_data->speed, &gps_data->course, &gps_data->date);
 		formatData(gps_time, gps_data);
-//		HAL_Delay(1);
 	}
 }
 

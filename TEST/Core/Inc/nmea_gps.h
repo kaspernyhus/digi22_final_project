@@ -34,7 +34,7 @@ typedef struct{
 } gps_data_t;
 
 void formatData(float time, gps_data_t* gps_data);
-void getLocation(gps_data_t* gps_data, uint8_t* rxData);
+void getLocation(gps_data_t* gps_data, char* rxData);
 uint16_t day_number_1980(uint16_t yyyy, uint16_t mm, uint16_t dd);
 void date_1980(uint16_t days, uint16_t *year, uint16_t *month, uint16_t *day);
 void gprmc2int(char gprmc[], uint16_t *year, uint16_t *month, uint16_t *day);
