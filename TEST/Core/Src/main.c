@@ -211,11 +211,13 @@ int main(void)
 	  if (gps_data_ready) {
 		  gps_data_ready = 0;
 		  getLocation(&gps_data, txData);
-		  gps_data.date = rolloverDateConvertion(gps_data.date);
-		  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-		  gps_active = 1;
-	  } else {
-		  gps_active = 0;
+		  if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
+			  gps_active = 1;
+			  gps_data.date = rolloverDateConvertion(gps_data.date);
+			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
+		  } else {
+			  gps_active = 0;
+		  }
 	  }
 
 	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
