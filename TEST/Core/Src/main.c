@@ -43,6 +43,7 @@
 #define SYS_TICK_INTERVAL_MS 200
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 10000/SYS_TICK_INTERVAL_MS
+#define GPSBUF_SIZE 500
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -76,11 +77,11 @@ typedef enum {
 } lcd_mode_t;
 
 // Buffers
-uint8_t rxData[750]; // Buffer to hold raw gps data
-char txData[750];
+uint8_t rx_buf[GPSBUF_SIZE]; //Buffer to hold raw gps data
+char gps_buf[GPSBUF_SIZE];	//Buffer for GPS data processing
 char lcdBuf[20];
 bme280_data_t bme280_data;
-gps_data_t gps_data = {.time.hours = 12, .time.min = 32, .time.sec = 8}; // parsed gps data
+gps_data_t gps_data = {.time.hours = 00, .time.min = 00, .time.sec = 00}; // parsed gps data
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
 uint16_t adcCh2 = 0;
@@ -91,13 +92,13 @@ volatile uint8_t systick = 0;
 uint32_t systick_cnt = 0;
 
 // Flags
+volatile uint8_t gps_sat_lock = 0;	//DMA start variable for EXT interrupt
 volatile uint8_t gps_data_ready = 0;
-static uint8_t gps_active = 0;
+volatile uint8_t gps_active = 0;
 static uint8_t log_data = 0;
 static uint8_t update_display_cnt = 0;
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t check_water_lvl_cnt = 0;
-static uint8_t uartDmaStart = 0;	//DMA start variable for EXT interrupt
 
 /* USER CODE END PV */
 
@@ -166,6 +167,9 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
   HAL_TIM_Base_Start_IT(&htim15);
 
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
+  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt
+
   LOG_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
   // Start message
@@ -207,18 +211,17 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-
-	  if (gps_data_ready) {
-		  gps_data_ready = 0;
-		  getLocation(&gps_data, txData);
-		  if ((gps_data.lati != 0) || (gps_data.longi != 0)) {
-			  gps_active = 1;
+      if(gps_sat_lock == 1)
+      {
+		  if (gps_data_ready) {
+			  gps_data_ready = 0;
+			  getLocation(&gps_data, gps_buf);
+			  memset(gps_buf, 0x00, GPSBUF_SIZE);
 			  gps_data.date = rolloverDateConvertion(gps_data.date);
 			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-		  } else {
-			  gps_active = 0;
+			  gps_active = 1;
 		  }
-	  }
+      }
 
 	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
 		  read_sensor_cnt = 0;
@@ -795,28 +798,30 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
     }
 }
 
-
 // External Interrupt ISR Handler CallBackFun
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-
     if(GPIO_Pin == GPIO_PIN_4) // INT Source is pin PB4
     {
-    	if(uartDmaStart == 0)
+    	if(gps_sat_lock == 0)
     	{
-    		HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Init GPS uart data to DMA
-    		uartDmaStart = 1;
+    		gps_sat_lock = 1;
 
-    	} else
-    	{
-    		strcpy(txData, (char*)(rxData));	//Copy data from DMA
-    		gps_data_ready = 1;
-    		HAL_UART_DMAStop(&huart1);			//Stop DMA to clear it
-    		HAL_UART_Receive_DMA(&huart1, (uint8_t*)rxData, 700);	//Restart GPS uart data to DMA
     	}
     }
 }
 
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
+{
+	if(huart->Instance == USART1)
+	{
+		memcpy(gps_buf, (char*)rx_buf, Size);
+		gps_data_ready = 1;
+		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE);
+		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+
+	}
+}
 
 /* USER CODE END 4 */
 
