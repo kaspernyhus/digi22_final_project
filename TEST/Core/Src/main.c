@@ -43,6 +43,7 @@
 #define SYS_TICK_INTERVAL_MS 200
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 1000/SYS_TICK_INTERVAL_MS
+#define LOG_DATA_RATE SENSOR_READ_RATE*10
 #define GPSBUF_SIZE 500
 /* USER CODE END PD */
 
@@ -92,12 +93,12 @@ volatile uint8_t systick = 0;
 uint32_t systick_cnt = 0;
 
 // Flags
-volatile uint8_t gps_sat_lock = 0;	//DMA start variable for EXT interrupt
+volatile uint8_t gps_sat_lock = 0;	//variable for EXT interrupt
 volatile uint8_t gps_data_ready = 0;
 volatile uint8_t gps_active = 0;
-static uint8_t log_data = 0;
 static uint8_t update_display_cnt = 0;
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
+static uint8_t log_data_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
 
 /* USER CODE END PV */
@@ -206,6 +207,7 @@ int main(void)
       systick_cnt++;
       update_display_cnt++;
       read_sensor_cnt++;
+      log_data_cnt++;
       check_water_lvl_cnt++;
     }
     /* USER CODE END WHILE */
@@ -217,9 +219,10 @@ int main(void)
 			  gps_data_ready = 0;
 			  getLocation(&gps_data, gps_buf);
 			  memset(gps_buf, 0x00, GPSBUF_SIZE);
+			  gps_active = 1;
 			  gps_data.date = rolloverDateConvertion(gps_data.date);
 			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-			  gps_active = 1;
+
 		  }
       }
 
@@ -243,11 +246,10 @@ int main(void)
       }
 
       alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
-      log_data = 1;
     }
 
-    if (log_data) {
-      log_data = 0;
+    if (log_data_cnt >= LOG_DATA_RATE) {
+      log_data_cnt = 0;
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s,%.02f",
 				  gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
@@ -806,7 +808,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     	if(gps_sat_lock == 0)
     	{
     		gps_sat_lock = 1;
-
     	}
     }
 }
@@ -819,7 +820,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 		gps_data_ready = 1;
 		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE);
 		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
-
 	}
 }
 
