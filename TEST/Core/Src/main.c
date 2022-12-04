@@ -165,15 +165,14 @@ int main(void)
     MX_TIM2_Init();
     /* USER CODE BEGIN 2 */
 
-    HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
+    HAL_TIM_Base_Start_IT(&htim2);	//Starting Timer2 in interrupt mode
     HAL_TIM_Base_Start_IT(&htim15);
 
-  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
-  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt, since data size is unknown
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
+    __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt, since data size is unknown
 
+    // Initialize terminal logger
     print_log_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
-
-    // Start message
     printInfo("Boat-log ON!");
 
     // LCD
@@ -182,7 +181,7 @@ int main(void)
     HAL_Delay(2000);
     lcd_clear();
 
-    // BME280
+    // BME280 temperature/humudity/pressure sensor
     if (bme280_init(&hi2c1)) {
         printInfo("BME280 initialized");
     }
@@ -193,6 +192,7 @@ int main(void)
     openlogAppendFile("log1.csv", logData);
     printInfo("Started OpenLog file");
 
+    // Alert system
     alert_system_init(&htim15);
     printInfo("Initialized alert system");
 
@@ -245,27 +245,34 @@ int main(void)
 
             water_level = check_water_level(waterlevel_reading);
             if (water_level == WATER_LEVEL_HIGH) {
-                // TODO: Turn on pump relay
+                // Switch relay to turn water pump on
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
             } else {
-                // TODO: Turn pump relay off
+                // Switch relay to turn water pump off
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
             }
+
+            // Let alert_system check new values
             alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
             alert_system_check(bme280_data.humidity, HUMIDITY_ALERT);
             alert_system_check(batVol, BATTERY_VOLTAGE_ALERT);
             alert_system_check(water_level, WATER_LEVEL_ALERT);
+            alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
 
-		  alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
-	 }
+            // Print new values to terminal log
+            char buf[128];
+            sprintf(buf, "Temp: %.2f DegC // Hum: %.2f RH%% // Pres: %.2f hPa // BatVol: %.2fV // WaterLvl: %s",
+                bme280_data.temperature, bme280_data.humidity, bme280_data.pressure, batVol, waterlevel_str[water_level]);
+            printInfo(buf);
+	    }
 
         if (log_data_cnt >= LOG_DATA_RATE) {
-        log_data_cnt = 0;
-        // Save formatted data to OpenLog
+            log_data_cnt = 0;
+            // Save formatted data to OpenLog
             sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s,%.02f",
-                    gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
-                    gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature,
-                    bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level],batVol);
+                gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
+                gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature,
+                bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level],batVol);
             openlogAppendFile("log1.csv", logData);
         }
 
@@ -277,58 +284,46 @@ int main(void)
                 if (gps_active == 0) {
                     sprintf(lcdBuf, "NO GPS LOCK!");
                     lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                    // printInfo(lcdBuf);
                     lcd_mode = LCD_MODE_TEMP;
                     break;
                 }
                 sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 sprintf(lcdBuf, "Date: %06d", gps_data.date);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_GPS;
                 break;
             case LCD_MODE_GPS:
                 sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_SPEED;
                 break;
             case LCD_MODE_SPEED:
                 sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_TEMP;
                 break;
             case LCD_MODE_TEMP:
                 sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_WATER_LVL;
                 break;
             case LCD_MODE_WATER_LVL:
                 sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_BAT_VOL;
                 break;
             case LCD_MODE_BAT_VOL:
                 sprintf(lcdBuf, "BatVol: %.02fV", batVol);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                // printInfo(lcdBuf);
                 lcd_mode = LCD_MODE_TIME;
                 break;
             default:
