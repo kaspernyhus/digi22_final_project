@@ -29,13 +29,13 @@ typedef enum {
 static const char* const alert_state_name[3] = {"ALERT_NORMAL", "ALERT_LOW", "ALERT_HIGH"};
 
 typedef enum {
-    ALERT_TEMPERATURE,
-    ALERT_HUMIDITY,
-    ALERT_PRESSURE,
-    ALERT_WATER_LEVEL,
-    ALERT_BATTERY_VOLTAGE,
-    ALERT_POSITION,
-    ALERT_SPEED
+    TEMPERATURE_ALERT,
+    HUMIDITY_ALERT,
+    PRESSURE_ALERT,
+    WATER_LEVEL_ALERT,
+    BATTERY_VOLTAGE_ALERT,
+    POSITION_ALERT,
+    SPEED_ALERT
 } alert_type_t;
 
 typedef struct {
