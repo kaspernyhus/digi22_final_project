@@ -31,6 +31,7 @@
 #include "nmea_gps.h"
 #include "water_level.h"
 #include "alert_system.h"
+#include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
