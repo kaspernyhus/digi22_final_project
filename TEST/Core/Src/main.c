@@ -194,9 +194,9 @@ int main(void)
     printInfo("Started OpenLog file");
 
     alert_system_init(&htim15);
+    printInfo("Initialized alert system");
     alert_system_register(TEMPERATURE_ALERT, "Temperature", 23.0, 27.0);
     alert_system_register(HUMIDITY_ALERT, "Humidity", 68.0, 90.0);
-    printInfo("Initialized alert system");
 
     /* USER CODE END 2 */
 
