@@ -27,7 +27,6 @@ void print_log_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t*
     _uart = uart_handle;
     _time = time;
     _systicks_cnt = systicks_cnt;
-    printError("Test");
 }
 
 /**
@@ -42,6 +41,23 @@ void printInfo(char* str)
   // sprintf(time, "[%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
   // HAL_UART_Transmit(_uart, (uint8_t*)time, 22, 100);
   sprintf(pre_log, "I [%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
+  HAL_UART_Transmit(_uart, (uint8_t*)pre_log, strlen(pre_log), 100);
+  HAL_UART_Transmit(_uart, (uint8_t*)str, strlen(str), 100);
+  HAL_UART_Transmit(_uart, (uint8_t*)"\r\n", 2, 100);
+}
+
+/**
+ * @brief Log a string to the terminal, WARNING level
+ *
+ * @param str
+ */
+void printWarning(char* str)
+{
+  char pre_log[40];
+
+  // sprintf(time, "[%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
+  // HAL_UART_Transmit(_uart, (uint8_t*)time, 22, 100);
+  sprintf(pre_log, "W [%lu] (%.2d:%.2d:%.2d): ", *_systicks_cnt, _time->hours, _time->min, _time->sec);
   HAL_UART_Transmit(_uart, (uint8_t*)pre_log, strlen(pre_log), 100);
   HAL_UART_Transmit(_uart, (uint8_t*)str, strlen(str), 100);
   HAL_UART_Transmit(_uart, (uint8_t*)"\r\n", 2, 100);

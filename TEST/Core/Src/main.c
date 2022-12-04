@@ -30,7 +30,7 @@
 #include "bme280.h"
 #include "nmea_gps.h"
 #include "water_level.h"
-#include "alert.h"
+#include "alert_system.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -69,12 +69,12 @@ DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 typedef enum {
-  LCD_MODE_TIME,
-  LCD_MODE_GPS,
-  LCD_MODE_SPEED,
-  LCD_MODE_TEMP,
-  LCD_MODE_WATER_LVL,
-  LCD_MODE_BAT_VOL
+    LCD_MODE_TIME,
+    LCD_MODE_GPS,
+    LCD_MODE_SPEED,
+    LCD_MODE_TEMP,
+    LCD_MODE_WATER_LVL,
+    LCD_MODE_BAT_VOL
 } lcd_mode_t;
 
 // Buffers
@@ -130,112 +130,116 @@ static void MX_TIM2_Init(void);
   */
 int main(void)
 {
-  /* USER CODE BEGIN 1 */
-	char logData[100];
-	lcd_mode_t lcd_mode = LCD_MODE_TIME;
+    /* USER CODE BEGIN 1 */
+        char logData[100];
+        lcd_mode_t lcd_mode = LCD_MODE_TIME;
 
-  /* USER CODE END 1 */
+    /* USER CODE END 1 */
 
-  /* MCU Configuration--------------------------------------------------------*/
+    /* MCU Configuration--------------------------------------------------------*/
 
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
+    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+    HAL_Init();
 
-  /* USER CODE BEGIN Init */
+    /* USER CODE BEGIN Init */
 
-  /* USER CODE END Init */
+    /* USER CODE END Init */
 
-  /* Configure the system clock */
-  SystemClock_Config();
+    /* Configure the system clock */
+    SystemClock_Config();
 
-  /* USER CODE BEGIN SysInit */
+    /* USER CODE BEGIN SysInit */
 
-  /* USER CODE END SysInit */
+    /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_DMA_Init();
-  MX_USART2_UART_Init();
-  MX_ADC1_Init();
-  MX_I2C1_Init();
-  MX_USART3_UART_Init();
-  MX_USART1_UART_Init();
-  MX_IWDG_Init();
-  MX_TIM15_Init();
-  MX_TIM2_Init();
-  /* USER CODE BEGIN 2 */
+    /* Initialize all configured peripherals */
+    MX_GPIO_Init();
+    MX_DMA_Init();
+    MX_USART2_UART_Init();
+    MX_ADC1_Init();
+    MX_I2C1_Init();
+    MX_USART3_UART_Init();
+    MX_USART1_UART_Init();
+    MX_IWDG_Init();
+    MX_TIM15_Init();
+    MX_TIM2_Init();
+    /* USER CODE BEGIN 2 */
 
-  HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
-  HAL_TIM_Base_Start_IT(&htim15);
+    HAL_TIM_Base_Start_IT(&htim2);				//Starting Timer2 in interrupt mode
+    HAL_TIM_Base_Start_IT(&htim15);
 
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
   __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt, since data size is unknown
 
-  print_log_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
+    print_log_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
-  // Start message
-  printInfo("Boat-log ON!");
+    // Start message
+    printInfo("Boat-log ON!");
 
-  // LCD
-  lcd_init(&hi2c1);
-  lcd_send_string_xy("Boat-log ON!", 0, 0, CLEAR_LCD);
-  HAL_Delay(2000);
-  lcd_clear();
+    // LCD
+    lcd_init(&hi2c1);
+    lcd_send_string_xy("Boat-log ON!", 0, 0, CLEAR_LCD);
+    HAL_Delay(2000);
+    lcd_clear();
 
-  // BME280
-  if (bme280_init(&hi2c1)) {
-    printInfo("BME280 initialized");
-  }
-
-  // OpenLog
-  //Header for .csv logfile
-  sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,BatVoltage");
-  openlogAppendFile("log1.csv", logData);
-  printInfo("Started OpenLog file");
-
-  alert_init(&htim15);
-  printInfo("Initialized alert system");
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    if (systick) {
-      systick = 0;
-      systick_cnt++;
-      update_display_cnt++;
-      read_sensor_cnt++;
-      log_data_cnt++;
-      check_water_lvl_cnt++;
+    // BME280
+    if (bme280_init(&hi2c1)) {
+        printInfo("BME280 initialized");
     }
-    /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
-      if(gps_sat_lock == 1)
-      {
-		  if (gps_data_ready) {
-			  gps_data_ready = 0;
-			  getLocation(&gps_data, gps_buf);
-			  memset(gps_buf, 0x00, GPSBUF_SIZE);
-			  gps_data.date = rolloverDateConvertion(gps_data.date);
-			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-			  gps_active = 1;
-		  }
-      }
+    // OpenLog
+    //Header for .csv logfile
+    sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,ADC_Ch2");
+    openlogAppendFile("log1.csv", logData);
+    printInfo("Started OpenLog file");
 
-	  if (read_sensor_cnt >= SENSOR_READ_RATE) {
-		  read_sensor_cnt = 0;
-		  HAL_ADC_Start(&hadc1);
-		  HAL_ADC_PollForConversion(&hadc1, 1000);
-		  waterlevel_reading = HAL_ADC_GetValue(&hadc1);
-		  HAL_ADC_Start(&hadc1);
-		  HAL_ADC_PollForConversion(&hadc1, 1000);
-		  adcCh2 = HAL_ADC_GetValue(&hadc1);
-		  batVol = (15.275/4095)*(float)adcCh2;
+    alert_system_init(&htim15);
+    alert_system_register(ALERT_TEMPERATURE, "Temperature", 23.0, 27.0);
+    alert_system_register(ALERT_HUMIDITY, "Humidity", 68.0, 90.0);
+    printInfo("Initialized alert system");
 
-		  bme280_read_all(&bme280_data);
+    /* USER CODE END 2 */
+
+    /* Infinite loop */
+    /* USER CODE BEGIN WHILE */
+    while (1)
+    {
+        if (systick) {
+            systick = 0;
+            systick_cnt++;
+            update_display_cnt++;
+            read_sensor_cnt++;
+            log_data_cnt++;
+            check_water_lvl_cnt++;
+        }
+        /* USER CODE END WHILE */
+
+        /* USER CODE BEGIN 3 */
+        if(gps_sat_lock == 1) {
+            if (gps_data_ready) {
+                gps_data_ready = 0;
+                getLocation(&gps_data, gps_buf);
+                memset(gps_buf, 0x00, GPSBUF_SIZE);
+                gps_active = 1;
+                gps_data.date = rolloverDateConvertion(gps_data.date);
+                gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
+            }
+        }
+
+        if (read_sensor_cnt >= SENSOR_READ_RATE) {
+            read_sensor_cnt = 0;
+            HAL_ADC_Start(&hadc1);
+            HAL_ADC_PollForConversion(&hadc1, 1000);
+            waterlevel_reading = HAL_ADC_GetValue(&hadc1);
+            HAL_ADC_Start(&hadc1);
+            HAL_ADC_PollForConversion(&hadc1, 1000);
+            adcCh2 = HAL_ADC_GetValue(&hadc1);
+            batVol = (15.275/4095)*(float)adcCh2;
+
+            bme280_read_all(&bme280_data);
+            char buf[100];
+            sprintf(buf, "Temp: %.2f // Hum: %.2f", bme280_data.temperature, bme280_data.humidity);
+            printInfo(buf);
 
 		  water_level = check_water_level(waterlevel_reading);
 		  if (water_level == WATER_LEVEL_HIGH) {
@@ -249,85 +253,85 @@ int main(void)
 		  alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
 	 }
 
-    if (log_data_cnt >= LOG_DATA_RATE) {
-    	log_data_cnt = 0;
-      // Save formatted data to OpenLog
-		  sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s,%.02f",
-				  gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
-				  gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature,
-				  bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level],batVol);
-		  openlogAppendFile("log1.csv", logData);
-	  }
+        if (log_data_cnt >= LOG_DATA_RATE) {
+        log_data_cnt = 0;
+        // Save formatted data to OpenLog
+            sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s,%.02f",
+                    gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
+                    gps_data.lati, gps_data.longi, gps_data.speed, gps_data.course, bme280_data.temperature,
+                    bme280_data.pressure, bme280_data.humidity, waterlevel_str[water_level],batVol);
+            openlogAppendFile("log1.csv", logData);
+        }
 
-	  if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
-		  update_display_cnt = 0;
-		  switch (lcd_mode)
-		  {
-			  case LCD_MODE_TIME:
-				  if (gps_active == 0) {
-					  sprintf(lcdBuf, "NO GPS LOCK!");
-					  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-					  printInfo(lcdBuf);
-					  lcd_mode = LCD_MODE_TEMP;
-					  break;
-				  }
-				  sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  sprintf(lcdBuf, "Date: %06d", gps_data.date);
-				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_GPS;
-				  break;
-			  case LCD_MODE_GPS:
-				  sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
-				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_SPEED;
-				  break;
-			  case LCD_MODE_SPEED:
-				  sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
-				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_TEMP;
-				  break;
-			  case LCD_MODE_TEMP:
-				  sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
-				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_WATER_LVL;
-				  break;
-			  case LCD_MODE_WATER_LVL:
-				  sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
-				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_BAT_VOL;
-				  break;
-			  case LCD_MODE_BAT_VOL:
-				  sprintf(lcdBuf, "BatVol: %.02fV", batVol);
-				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  printInfo(lcdBuf);
-				  lcd_mode = LCD_MODE_TIME;
-				  break;
-			  default:
-				  lcd_mode = LCD_MODE_TIME;
-				  break;
-		  }
-	  }
-	  HAL_IWDG_Refresh(&hiwdg);	//Pet the watchdog - will timeout after 10sec
-  }
+        if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
+            update_display_cnt = 0;
+            switch (lcd_mode)
+            {
+            case LCD_MODE_TIME:
+                if (gps_active == 0) {
+                    sprintf(lcdBuf, "NO GPS LOCK!");
+                    lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                    // printInfo(lcdBuf);
+                    lcd_mode = LCD_MODE_TEMP;
+                    break;
+                }
+                sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                sprintf(lcdBuf, "Date: %06d", gps_data.date);
+                lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_GPS;
+                break;
+            case LCD_MODE_GPS:
+                sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
+                lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_SPEED;
+                break;
+            case LCD_MODE_SPEED:
+                sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
+                lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_TEMP;
+                break;
+            case LCD_MODE_TEMP:
+                sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
+                lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_WATER_LVL;
+                break;
+            case LCD_MODE_WATER_LVL:
+                sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
+                lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_BAT_VOL;
+                break;
+            case LCD_MODE_BAT_VOL:
+                sprintf(lcdBuf, "BatVol: %.02fV", batVol);
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                // printInfo(lcdBuf);
+                lcd_mode = LCD_MODE_TIME;
+                break;
+            default:
+                lcd_mode = LCD_MODE_TIME;
+                break;
+            }
+        }
+        HAL_IWDG_Refresh(&hiwdg);	//Pet the watchdog - will timeout after 10sec
+    }
   /* USER CODE END 3 */
 }
 
@@ -806,22 +810,22 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if(GPIO_Pin == GPIO_PIN_4) // INT Source is pin PB4
     {
-    	if(gps_sat_lock == 0)
-    	{
-    		gps_sat_lock = 1;
-    	}
+        if(gps_sat_lock == 0)
+        {
+            gps_sat_lock = 1;
+        }
     }
 }
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size)
 {
-	if(huart->Instance == USART1)
-	{
-		memcpy(gps_buf, (char*)rx_buf, Size);
-		gps_data_ready = 1;
-		HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE);
-		__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
-	}
+    if(huart->Instance == USART1)
+    {
+        memcpy(gps_buf, (char*)rx_buf, Size);
+        gps_data_ready = 1;
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE);
+        __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
+    }
 }
 
 /* USER CODE END 4 */

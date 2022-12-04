@@ -23,16 +23,6 @@ typedef struct {
 
 void print_log_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t* systicks);
 
-/**
- * @brief Logs a string to the terminal
- *
- * @param str
- */
 void printInfo(char* str);
-
-/**
- * @brief Logs a string to the terminal
- *
- * @param str
- */
+void printWarning(char* str);
 void printError(char* str);
