@@ -201,6 +201,7 @@ int main(void)
     alert_system_register(HUMIDITY_ALERT, "Humidity", ALERT_ABOVE_THRESHOLD, 72.0, 90.0);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
+    alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1);
 
     /* USER CODE END 2 */
 
@@ -242,14 +243,18 @@ int main(void)
 
             bme280_read_all(&bme280_data);
 
-		  water_level = check_water_level(waterlevel_reading);
-		  if (water_level == WATER_LEVEL_HIGH) {
-			// TODO: Turn on pump relay
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
-		  } else {
-			// TODO: Turn pump relay off
-			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
-		  }
+            water_level = check_water_level(waterlevel_reading);
+            if (water_level == WATER_LEVEL_HIGH) {
+                // TODO: Turn on pump relay
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
+            } else {
+                // TODO: Turn pump relay off
+                HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+            }
+            alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
+            alert_system_check(bme280_data.humidity, HUMIDITY_ALERT);
+            alert_system_check(batVol, BATTERY_VOLTAGE_ALERT);
+            alert_system_check(water_level, WATER_LEVEL_ALERT);
 
 		  alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
 	 }
