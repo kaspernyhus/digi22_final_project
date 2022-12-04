@@ -228,6 +228,12 @@ int main(void)
                 gps_active = 1;
                 gps_data.date = rolloverDateConvertion(gps_data.date);
                 gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
+
+                // Print to terminal log
+                char buf[128];
+                sprintf(buf, "Longitude: %.2f // Latitude: %.2f // Course: %.2f // Speed: %.2f",
+                    gps_data.longi, gps_data.lati, gps_data.course, gps_data.speed);
+                printInfo(buf);
             }
         }
 
@@ -261,7 +267,7 @@ int main(void)
 
             // Print new values to terminal log
             char buf[128];
-            sprintf(buf, "Temp: %.2f DegC // Hum: %.2f RH%% // Pres: %.2f hPa // BatVol: %.2fV // WaterLvl: %s",
+            sprintf(buf, "Temp: %.2f DegC // Hum: %.2f %%RH // Pres: %.2f hPa // BatVol: %.2fV // WaterLvl: %s",
                 bme280_data.temperature, bme280_data.humidity, bme280_data.pressure, batVol, waterlevel_str[water_level]);
             printInfo(buf);
 	    }
@@ -283,6 +289,7 @@ int main(void)
             case LCD_MODE_TIME:
                 if (gps_active == 0) {
                     sprintf(lcdBuf, "NO GPS LOCK!");
+                    printWarning(lcdBuf);
                     lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                     lcd_mode = LCD_MODE_TEMP;
                     break;
