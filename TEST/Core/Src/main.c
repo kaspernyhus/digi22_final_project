@@ -195,8 +195,12 @@ int main(void)
 
     alert_system_init(&htim15);
     printInfo("Initialized alert system");
-    alert_system_register(TEMPERATURE_ALERT, "Temperature", 23.0, 27.0);
-    alert_system_register(HUMIDITY_ALERT, "Humidity", 68.0, 90.0);
+
+    // Set alerts
+    alert_system_register(TEMPERATURE_ALERT, "Temperature", ALERT_ABOVE_THRESHOLD, 23.0, 26.0);
+    alert_system_register(HUMIDITY_ALERT, "Humidity", ALERT_ABOVE_THRESHOLD, 72.0, 90.0);
+    alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
+    alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
 
     /* USER CODE END 2 */
 
@@ -237,9 +241,6 @@ int main(void)
             batVol = (15.275/4095)*(float)adcCh2;
 
             bme280_read_all(&bme280_data);
-            char buf[100];
-            sprintf(buf, "Temp: %.2f // Hum: %.2f", bme280_data.temperature, bme280_data.humidity);
-            printInfo(buf);
 
 		  water_level = check_water_level(waterlevel_reading);
 		  if (water_level == WATER_LEVEL_HIGH) {

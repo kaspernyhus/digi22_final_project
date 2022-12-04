@@ -96,12 +96,13 @@ void alert_system_init(TIM_HandleTypeDef* timer_handle)
  * @param low_thresshold
  * @param high_thresshold
  */
-void alert_system_register(alert_type_t alert_type, char* name, float low_thresshold, float high_thresshold)
+void alert_system_register(alert_type_t alert_type, char* name, alert_threshold_t threshold_type, float low_threshold, float high_threshold)
 {
     alert_t new_alert = {
         .alert_type = alert_type,
-        .low_thresshold = low_thresshold,
-        .high_thresshold = high_thresshold,
+        .threshold_type = threshold_type,
+        .low_thresshold = low_threshold,
+        .high_thresshold = high_threshold,
         .alert_state = ALERT_NORMAL,
         .name = name
     };
@@ -113,7 +114,7 @@ void alert_system_register(alert_type_t alert_type, char* name, float low_thress
 }
 
 /**
- * @brief Checks if a value is consideret a hazard
+ * @brief Checks if a value is consideret a hazard (above or below a set threshold)
  *
  * @param value float value of measured data
  * @param type type of measurement
@@ -123,18 +124,42 @@ void alert_system_check(float value, alert_type_t type)
     // Look through registered alerts for matching type
     for (int i=0; i<alerts_registered; i++) {
         if (type == alerts[i].alert_type) {
-            if (value < alerts[i].low_thresshold) {
-                // No alert
-                alerts[i].alert_state = ALERT_NORMAL;
-                evaluate_alert_state();
-            } else if (value > alerts[i].high_thresshold) {
-                // High alert
-                alerts[i].alert_state = ALERT_HIGH;
-                evaluate_alert_state();
-            } else {
-                // low_thresshold < value < high_thresshold
-                alerts[i].alert_state = ALERT_LOW;
-                evaluate_alert_state();
+            switch (alerts[i].threshold_type)
+            {
+            case ALERT_ABOVE_THRESHOLD:
+                if (value < alerts[i].low_thresshold) {
+                    // No alert
+                    alerts[i].alert_state = ALERT_NORMAL;
+                    evaluate_alert_state();
+                } else if (value > alerts[i].high_thresshold) {
+                    // High alert
+                    alerts[i].alert_state = ALERT_HIGH;
+                    evaluate_alert_state();
+                } else {
+                    // low_thresshold < value < high_thresshold
+                    alerts[i].alert_state = ALERT_LOW;
+                    evaluate_alert_state();
+                }
+                break;
+
+            case ALERT_BELOW_THRESHOLD:
+                if (value > alerts[i].high_thresshold) {
+                    // No alert
+                    alerts[i].alert_state = ALERT_NORMAL;
+                    evaluate_alert_state();
+                } else if (value < alerts[i].low_thresshold) {
+                    // High alert
+                    alerts[i].alert_state = ALERT_HIGH;
+                    evaluate_alert_state();
+                } else {
+                    // low_thresshold < value < high_thresshold
+                    alerts[i].alert_state = ALERT_LOW;
+                    evaluate_alert_state();
+                }
+                break;
+
+            default:
+                break;
             }
         }
     }

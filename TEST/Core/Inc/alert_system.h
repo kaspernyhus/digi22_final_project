@@ -38,14 +38,20 @@ typedef enum {
     SPEED_ALERT
 } alert_type_t;
 
+typedef enum {
+    ALERT_BELOW_THRESHOLD,
+    ALERT_ABOVE_THRESHOLD
+} alert_threshold_t;
+
 typedef struct {
     char* name;
     alert_type_t alert_type;
+    alert_threshold_t threshold_type;
     float low_thresshold;
     float high_thresshold;
     alert_state_t alert_state;
 } alert_t;
 
 void alert_system_init(TIM_HandleTypeDef* timer_handle);
-void alert_system_register(alert_type_t alert_type, char* name, float low_thresshold, float high_thresshold);
+void alert_system_register(alert_type_t alert_type, char* name, alert_threshold_t threshold_type, float low_threshold, float high_threshold);
 void alert_system_check(float value, alert_type_t type);
