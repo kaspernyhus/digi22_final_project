@@ -42,8 +42,8 @@
 /* USER CODE BEGIN PD */
 #define SYS_TICK_INTERVAL_MS 200
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
-#define SENSOR_READ_RATE 1000/SYS_TICK_INTERVAL_MS
-#define LOG_DATA_RATE SENSOR_READ_RATE*10
+#define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
+#define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
 #define GPSBUF_SIZE 500
 /* USER CODE END PD */
 
@@ -93,9 +93,9 @@ volatile uint8_t systick = 0;
 uint32_t systick_cnt = 0;
 
 // Flags
-volatile uint8_t gps_sat_lock = 0;	//variable for EXT interrupt
-volatile uint8_t gps_data_ready = 0;
-volatile uint8_t gps_active = 0;
+volatile uint8_t gps_sat_lock = 0;		//EXT interrupt when GPS has lock
+volatile uint8_t gps_data_ready = 0;	//DMA interrupt when UART line goes idle
+volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and display
 static uint8_t update_display_cnt = 0;
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t log_data_cnt = 0;
@@ -169,7 +169,7 @@ int main(void)
   HAL_TIM_Base_Start_IT(&htim15);
 
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
-  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt
+  __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt, since data size is unknown
 
   print_log_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
@@ -189,7 +189,7 @@ int main(void)
 
   // OpenLog
   //Header for .csv logfile
-  sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,ADC_Ch2");
+  sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,BatVoltage");
   openlogAppendFile("log1.csv", logData);
   printInfo("Started OpenLog file");
 
@@ -219,10 +219,9 @@ int main(void)
 			  gps_data_ready = 0;
 			  getLocation(&gps_data, gps_buf);
 			  memset(gps_buf, 0x00, GPSBUF_SIZE);
-			  gps_active = 1;
 			  gps_data.date = rolloverDateConvertion(gps_data.date);
 			  gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
-
+			  gps_active = 1;
 		  }
       }
 
@@ -241,15 +240,17 @@ int main(void)
 		  water_level = check_water_level(waterlevel_reading);
 		  if (water_level == WATER_LEVEL_HIGH) {
 			// TODO: Turn on pump relay
+			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
 		  } else {
 			// TODO: Turn pump relay off
-      }
+			  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
+		  }
 
-      alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
-    }
+		  alert_check(bme280_data.temperature, ALERT_TEMPERATURE);
+	 }
 
     if (log_data_cnt >= LOG_DATA_RATE) {
-      log_data_cnt = 0;
+    	log_data_cnt = 0;
       // Save formatted data to OpenLog
 		  sprintf(logData, "%02d:%02d:%02d,%06d,%f,%f,%.02f,%.02f,%.02f,%.02f,%.02f,%s,%.02f",
 				  gps_data.time.hours, gps_data.time.min, gps_data.time.sec, gps_data.date,
@@ -756,7 +757,7 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, LD2_Pin|GPIO_PIN_14, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -764,12 +765,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LD2_Pin */
-  GPIO_InitStruct.Pin = LD2_Pin;
+  /*Configure GPIO pins : LD2_Pin PB14 */
+  GPIO_InitStruct.Pin = LD2_Pin|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PB4 */
   GPIO_InitStruct.Pin = GPIO_PIN_4;
