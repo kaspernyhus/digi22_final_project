@@ -19,21 +19,15 @@ static alert_state_t current_alert_state = ALERT_HIGH;
 
 TIM_HandleTypeDef* _tim;
 
-static void change_state(alert_state_t new_state)
-{
-    if (new_state != current_alert_state) {
+/**
+ * @brief Change system wide alert state
+ *
+ * @param new_state requested new alert state
+ */
+static void change_state(alert_state_t new_state) {
+    // Set system alert level
+    if (current_alert_state != new_state) {
         current_alert_state = new_state;
-        char buf[100];
-        sprintf(buf, "New alert state: %s", alert_state_name[current_alert_state]);
-        printInfo(buf);
-
-        // Print info on all alerts
-        for (int i=0; i<alerts_registered; i++) {
-            if (alerts[i].alert_state != ALERT_NORMAL) {
-                sprintf(buf,"%s: %s", alerts[i].name, alert_state_name[alerts[i].alert_state]);
-                printWarning(buf);
-            }
-        }
 
         switch (current_alert_state)
         {
@@ -54,13 +48,47 @@ static void change_state(alert_state_t new_state)
             __HAL_TIM_SET_COUNTER(_tim, 0);
             break;
         }
+
+        // Print alert levels
+        for (int i=0; i<alerts_registered; i++) {
+            if (alerts[i].alert_state != ALERT_NORMAL) {
+                char buf[100];
+                sprintf(buf, "%s: %s", alerts[i].name, alert_state_name[alerts[i].alert_state]);
+                printWarning(buf);
+            }
+        }
     }
 }
 
+/**
+ * @brief Look for raised alert levels in registered alert modules
+ *
+ */
+static void evaluate_alert_state(void)
+{
+    // Look through registered alerts to find raised alert levels, highest set sytem wide alert level
+    alert_state_t highest_alert = ALERT_NORMAL;
+    for (int i=0; i<alerts_registered; i++) {
+        if (alerts[i].alert_state != ALERT_NORMAL) {
+            if (highest_alert < alerts[i].alert_state) {
+                highest_alert = alerts[i].alert_state;
+            }
+        }
+    }
+    if (current_alert_state != highest_alert) {
+        change_state(highest_alert);
+    }
+}
+
+/**
+ * @brief Initialize alert system
+ *
+ * @param timer_handle handle to timer to control LED flash rate
+ */
 void alert_system_init(TIM_HandleTypeDef* timer_handle)
 {
     _tim = timer_handle;
-    change_state(ALERT_HIGH);
+    evaluate_alert_state();
 }
 
 /**
@@ -94,21 +122,21 @@ void alert_system_register(alert_type_t alert_type, char* name, float low_thress
  */
 void alert_system_check(float value, alert_type_t type)
 {
-
+    // Look through registered alerts for matching type
     for (int i=0; i<alerts_registered; i++) {
         if (type == alerts[i].alert_type) {
-            // Check values
             if (value < alerts[i].low_thresshold) {
                 // No alert
-                return;
+                alerts[i].alert_state = ALERT_NORMAL;
+                evaluate_alert_state();
             } else if (value > alerts[i].high_thresshold) {
                 // High alert
                 alerts[i].alert_state = ALERT_HIGH;
-                change_state(ALERT_HIGH);
+                evaluate_alert_state();
             } else {
                 // low_thresshold < value < high_thresshold
                 alerts[i].alert_state = ALERT_LOW;
-                change_state(ALERT_LOW);
+                evaluate_alert_state();
             }
         }
     }
