@@ -51,11 +51,9 @@ static void change_state(alert_state_t new_state) {
 
         // Print alert levels
         for (int i=0; i<alerts_registered; i++) {
-            if (alerts[i].alert_state != ALERT_NORMAL) {
-                char buf[100];
-                sprintf(buf, "%s: %s", alerts[i].name, alert_state_name[alerts[i].alert_state]);
-                printWarning(buf);
-            }
+            char buf[100];
+            sprintf(buf, "%s: %s", alerts[i].name, alert_state_name[alerts[i].alert_state]);
+            printWarning(buf);
         }
     }
 }
