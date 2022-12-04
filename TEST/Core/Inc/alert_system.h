@@ -32,6 +32,10 @@ typedef enum {
     ALERT_TEMPERATURE,
     ALERT_HUMIDITY,
     ALERT_PRESSURE,
+    ALERT_WATER_LEVEL,
+    ALERT_BATTERY_VOLTAGE,
+    ALERT_POSITION,
+    ALERT_SPEED
 } alert_type_t;
 
 typedef struct {
