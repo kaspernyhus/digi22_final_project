@@ -15,7 +15,6 @@ water_level_t check_water_level(uint16_t adc_reading)
 {
     if(adc_reading <= 600) {
         return WATER_LEVEL_LOW;
-
     } else {
         return WATER_LEVEL_HIGH;
     }

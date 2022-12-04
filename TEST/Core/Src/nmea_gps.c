@@ -13,28 +13,25 @@
 extern UART_HandleTypeDef huart2;
 #define TIMEZONEDIFF 1
 
-void formatData(gps_data_t* gps_data)
+void formatData(float time, gps_data_t* gps_data)
 {
+	gps_data->time.hours = (int)time/10000;
+	gps_data->time.min = (int)(time-(gps_data->time.hours*10000))/100;
+	gps_data->time.sec = (int)(time-((gps_data->time.hours*10000)+(gps_data->time.min*100)));
 
-	gps_data->hours = (int)gps_data->time/10000;
-	gps_data->min = (int)(gps_data->time-(gps_data->hours*10000))/100;
-	gps_data->sec = (int)(gps_data->time-((gps_data->hours*10000)+(gps_data->min*100)));
-
-	gps_data->hours += TIMEZONEDIFF;
-	if(gps_data->hours > 23)
+	gps_data->time.hours += TIMEZONEDIFF;
+	if(gps_data->time.hours > 23)
 	{
-		gps_data->hours = 0;
+		gps_data->time.hours = 0;
 		gps_data->date += 10000;
 	}
 }
 
-void getLocation(gps_data_t* gps_data, uint8_t* rxData)
+void getLocation(gps_data_t* gps_data, char* rxData)
 {
-	char txData[750];
 	char gpsPayload[100];
 	int msgIndex = 0;
-	strcpy(txData, (char*)(rxData));
-	char *ptr = strstr(txData, "GPRMC");
+	char *ptr = strstr(rxData, "GPRMC");
 	if(*ptr == 'G')
 	{
 		while(1)
@@ -48,9 +45,9 @@ void getLocation(gps_data_t* gps_data, uint8_t* rxData)
 				break;
 			}
 		}
-		sscanf(gpsPayload, "GPRMC,%f,A,%f,N,%f,E,%f,%f,%u,", &gps_data->time, &gps_data->lati, &gps_data->longi, &gps_data->speed, &gps_data->course, &gps_data->date);
-		formatData(gps_data);
-		HAL_Delay(1);
+		float gps_time;
+		sscanf(gpsPayload, "GPRMC,%f,A,%f,N,%f,E,%f,%f,%u,", &gps_time, &gps_data->lati, &gps_data->longi, &gps_data->speed, &gps_data->course, &gps_data->date);
+		formatData(gps_time, gps_data);
 	}
 }
 
@@ -104,7 +101,7 @@ static const uint16_t month_days[2][13] = {
 	  *day = 10 * (gprmc[0] - '0') + (gprmc[1] - '0');
 	  *month = 10 * (gprmc[2] - '0') + (gprmc[3] - '0');
 	  *year = 10 * (gprmc[4] - '0') + (gprmc[5] - '0');
-	  assert(*year >= 0 && *year <= 99 && *month >= 1 && *month <= 12 && *day >= 1 && *day <= 31);
+//	  assert(*year >= 0 && *year <= 99 && *month >= 1 && *month <= 12 && *day >= 1 && *day <= 31);
 	  // NMEA $GPRMC year number has only 2 digits
 	  if (*year > 79)
 	  *year = *year + 1900;
@@ -115,8 +112,8 @@ static const uint16_t month_days[2][13] = {
  // Convert integer date components to NMEA $GPRMC date string
  char *int2gprmc(uint16_t year, uint16_t month, uint16_t day)
  {
-	 assert(year >= 1980 && year <= 2079 && month >= 1 && month <= 12
-	  && day >= 1 && day <= 31);
+//	 assert(year >= 1980 && year <= 2079 && month >= 1 && month <= 12
+//	  && day >= 1 && day <= 31);
 	  year = year % 100; // use only decades and years, drop centuries
 	  static char gprmc[7];
 	  gprmc[0] = '0' + (day / 10);
