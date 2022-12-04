@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "log.h"
+#include "print_log.h"
 #include "i2c-lcd.h"
 #include "openlog_STM32.h"
 #include "bme280.h"
@@ -171,10 +171,10 @@ int main(void)
   HAL_UARTEx_ReceiveToIdle_DMA(&huart1, rx_buf, GPSBUF_SIZE); 	//Init GPS uart data to DMA
   __HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);				//Disable half-tranfer complete interrupt
 
-  LOG_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
+  print_log_init(&huart2, (log_time_t*)&gps_data.time, &systick_cnt);
 
   // Start message
-  LOG("Boat-log ON!");
+  printInfo("Boat-log ON!");
 
   // LCD
   lcd_init(&hi2c1);
@@ -184,17 +184,17 @@ int main(void)
 
   // BME280
   if (bme280_init(&hi2c1)) {
-    LOG("BME280 initialized");
+    printInfo("BME280 initialized");
   }
 
   // OpenLog
   //Header for .csv logfile
   sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,ADC_Ch2");
   openlogAppendFile("log1.csv", logData);
-  LOG("Started OpenLog file");
+  printInfo("Started OpenLog file");
 
   alert_init(&htim15);
-  LOG("Initialized alert system");
+  printInfo("Initialized alert system");
 
   /* USER CODE END 2 */
 
@@ -266,58 +266,58 @@ int main(void)
 				  if (gps_active == 0) {
 					  sprintf(lcdBuf, "NO GPS LOCK!");
 					  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-					  LOG(lcdBuf);
+					  printInfo(lcdBuf);
 					  lcd_mode = LCD_MODE_TEMP;
 					  break;
 				  }
 				  sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  sprintf(lcdBuf, "Date: %06d", gps_data.date);
 				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_GPS;
 				  break;
 			  case LCD_MODE_GPS:
 				  sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
 				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_SPEED;
 				  break;
 			  case LCD_MODE_SPEED:
 				  sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
 				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_TEMP;
 				  break;
 			  case LCD_MODE_TEMP:
 				  sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
 				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_WATER_LVL;
 				  break;
 			  case LCD_MODE_WATER_LVL:
 				  sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
 				  lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_BAT_VOL;
 				  break;
 			  case LCD_MODE_BAT_VOL:
 				  sprintf(lcdBuf, "BatVol: %.02fV", batVol);
 				  lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-				  LOG(lcdBuf);
+				  printInfo(lcdBuf);
 				  lcd_mode = LCD_MODE_TIME;
 				  break;
 			  default:
@@ -833,7 +833,7 @@ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
 
-  LOG("An error occured");
+  printInfo("An error occured");
   sprintf(lcdBuf, "ERROR!");
   lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
   /* User can add his own implementation to report the HAL error return state */

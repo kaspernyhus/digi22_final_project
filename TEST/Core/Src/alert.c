@@ -10,7 +10,7 @@
  */
 
 #include "alert.h"
-#include "log.h"
+#include "print_log.h"
 
 alert_state_t current_alert_state = ALERT_HIGH;
 TIM_HandleTypeDef* _tim;
@@ -21,7 +21,7 @@ static void change_state(alert_state_t new_state)
         current_alert_state = new_state;
         char buf[35];
         sprintf(buf, "New alert state: %s", alert_state_name[current_alert_state]);
-        LOG(buf);
+        printInfo(buf);
 
         switch (current_alert_state)
         {

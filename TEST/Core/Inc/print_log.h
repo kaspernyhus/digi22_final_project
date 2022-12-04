@@ -21,11 +21,18 @@ typedef struct {
 	int sec;
 } log_time_t;
 
-void LOG_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t* systicks);
+void print_log_init(UART_HandleTypeDef* uart_handle, log_time_t* time, uint32_t* systicks);
 
 /**
  * @brief Logs a string to the terminal
  *
  * @param str
  */
-void LOG(char* str);
+void printInfo(char* str);
+
+/**
+ * @brief Logs a string to the terminal
+ *
+ * @param str
+ */
+void printError(char* str);
