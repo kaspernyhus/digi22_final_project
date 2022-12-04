@@ -22,20 +22,8 @@ void button_init(button_t* button, button_config_t* config)
     // Save a function pointer to be able to get the pin state (high/low) for debouncing and long press detection
     button->read_pin_state = config->read_pin_cb;
     button->active_state = config->active_state;
-
-    if (config->debounce_ticks != 0) {
-        button->debounce_ticks = config->debounce_ticks;
-    } else {
-        // Default value
-        button->debounce_ticks = DEBOUNCE_TICKS;
-    }
-
-    if (config->long_press_ticks != 0) {
-        button->long_press_ticks = config->long_press_ticks;
-    } else {
-        // Default value
-        button->long_press_ticks = LONG_PRESS_TICKS;
-    }
+    button->debounce_ticks = config->debounce_ticks;
+    button->long_press_ticks = config->long_press_ticks;
 
     // Set initial state to WAIT
     button->state = BUTTON_STATE_WAIT;

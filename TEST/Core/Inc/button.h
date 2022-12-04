@@ -13,9 +13,6 @@
 
 #include <stdint.h>
 
-#define DEBOUNCE_TICKS 0
-#define LONG_PRESS_TICKS 16
-
 typedef enum {
     BUTTON_STATE_WAIT,
     BUTTON_STATE_ACTIVATED,
