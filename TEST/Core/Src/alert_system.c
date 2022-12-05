@@ -164,3 +164,13 @@ void alert_system_check(float value, alert_type_t type)
         }
     }
 }
+
+/**
+ * @brief Return current alert level
+ *
+ * @return alert_state_t
+ */
+alert_state_t alert_system_alert_level(void)
+{
+    return current_alert_state;
+}

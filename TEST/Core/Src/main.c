@@ -43,7 +43,6 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SYS_TICK_INTERVAL_MS 40
-#define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
 #define GPSBUF_SIZE 500
@@ -70,34 +69,6 @@ UART_HandleTypeDef huart3;
 DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
-typedef enum {
-    LCD_PAGE_TIME,
-    LCD_PAGE_GPS,
-    LCD_PAGE_SPEED,
-    LCD_PAGE_TEMP,
-    LCD_PAGE_WATER_LVL,
-    LCD_PAGE_BAT_VOL,
-    LCD_PAGE_LAST,
-    LCD_PAGE_ALERTS
-} lcd_page_t;
-
-lcd_page_t lcd_current_page = LCD_PAGE_TIME;
-
-/**
- * @brief Go to next lcd page.
- * Note: LCD_PAGE_ALERTS always goes to LCD_PAGE_TIME
- *
- */
-void lcd_toggle(void)
-{
-    if (lcd_current_page == LCD_PAGE_ALERTS) {
-        lcd_current_page = LCD_PAGE_TIME;
-    } else if (lcd_current_page != (LCD_PAGE_LAST-1)) {
-        lcd_current_page++;
-    } else {
-        lcd_current_page = LCD_PAGE_TIME;
-    }
-}
 
 // Buffers
 uint8_t rx_buf[GPSBUF_SIZE]; //Buffer to hold raw gps data
@@ -121,10 +92,85 @@ uint32_t systick_cnt = 0;
 volatile uint8_t gps_sat_lock = 0;		//EXT interrupt when GPS has lock
 volatile uint8_t gps_data_ready = 0;	//DMA interrupt when UART line goes idle
 volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and display
-static uint8_t update_display_cnt = 0;
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t log_data_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
+static uint8_t lcd_update_page = 1;
+static alert_state_t alert_state_global = ALERT_NORMAL;
+
+// LCD control
+typedef enum {
+    LCD_PAGE_NO_GPS,
+    LCD_PAGE_TIME, // Require GPS lock
+    LCD_PAGE_GPS, // Require GPS lock
+    LCD_PAGE_SPEED, // Require GPS lock
+    LCD_PAGE_TEMP,
+    LCD_PAGE_WATER_LVL,
+    LCD_PAGE_BAT_VOL,
+    LCD_PAGE_ALERTS
+} lcd_page_t;
+
+lcd_page_t lcd_current_page = LCD_PAGE_NO_GPS;
+
+/**
+ * @brief Go to next lcd page.
+ *
+ */
+void lcd_toggle(void)
+{
+    lcd_page_t lcd_next_page;
+    switch (lcd_current_page)
+    {
+    case LCD_PAGE_TEMP:
+        if (alert_state_global) {
+            lcd_next_page = LCD_PAGE_ALERTS;
+        } else {
+            lcd_next_page = LCD_PAGE_WATER_LVL;
+        }
+        break;
+    case LCD_PAGE_WATER_LVL:
+        lcd_next_page = LCD_PAGE_BAT_VOL;
+        break;
+    case LCD_PAGE_BAT_VOL:
+        if (!gps_active) {
+            lcd_next_page = LCD_PAGE_NO_GPS;
+        } else {
+            lcd_next_page = LCD_PAGE_TIME;
+        }
+        break;
+    case LCD_PAGE_NO_GPS:
+        lcd_next_page = LCD_PAGE_TEMP;
+        break;
+    case LCD_PAGE_TIME:
+        if (!gps_active) {
+            lcd_next_page = LCD_PAGE_TEMP;
+        } else {
+            lcd_next_page = LCD_PAGE_GPS;
+        }
+        break;
+    case LCD_PAGE_GPS:
+        if (!gps_active) {
+            lcd_next_page = LCD_PAGE_TEMP;
+        } else {
+            lcd_next_page = LCD_PAGE_SPEED;
+        }
+        break;
+    case LCD_PAGE_SPEED:
+        lcd_next_page = LCD_PAGE_TEMP;
+        break;
+    case LCD_PAGE_ALERTS:
+        lcd_next_page = LCD_PAGE_WATER_LVL;
+        break;
+    default:
+        lcd_next_page = LCD_PAGE_TEMP;
+        break;
+    }
+    char buf[50];
+    sprintf(buf, "Current page: %d // Next page: %d", lcd_current_page, lcd_next_page);
+    printInfo(buf);
+    lcd_current_page = lcd_next_page;
+    lcd_update_page = 1;
+}
 
 // User button
 button_t user_button;
@@ -135,8 +181,7 @@ button_pin_state_t read_user_button(void)
 
 void button_pressed(void)
 {
-    // TODO: Cycle through LCD
-    printInfo("User Button press!");
+    lcd_toggle();
 }
 
 void button_long_pressed(void)
@@ -175,8 +220,7 @@ static void MX_TIM2_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-        char logData[100];
-        lcd_mode_t lcd_mode = LCD_MODE_TIME;
+    char logData[100];
 
   /* USER CODE END 1 */
 
@@ -268,10 +312,10 @@ int main(void)
             systick = 0;
             button_tick(&user_button);
             systick_cnt++;
-            update_display_cnt++;
             read_sensor_cnt++;
             log_data_cnt++;
             check_water_lvl_cnt++;
+            alert_state_global = alert_system_alert_level();
         }
     /* USER CODE END WHILE */
 
@@ -325,7 +369,7 @@ int main(void)
             char buf[128];
             sprintf(buf, "Temp: %.2f DegC // Hum: %.2f %%RH // Pres: %.2f hPa // BatVol: %.2fV // WaterLvl: %s",
                 bme280_data.temperature, bme280_data.humidity, bme280_data.pressure, batVol, waterlevel_str[water_level]);
-            printInfo(buf);
+            // printInfo(buf);
 	    }
 
         if (log_data_cnt >= LOG_DATA_RATE) {
@@ -338,59 +382,54 @@ int main(void)
             openlogAppendFile("log1.csv", logData);
         }
 
-        if(update_display_cnt >= DISPLAY_REFRESH_RATE) {
-            update_display_cnt = 0;
-            switch (lcd_mode)
+        if(lcd_update_page) {
+            lcd_update_page = 0;
+            switch (lcd_current_page)
             {
-            case LCD_MODE_TIME:
-                if (gps_active == 0) {
-                    sprintf(lcdBuf, "NO GPS LOCK!");
-                    printWarning(lcdBuf);
-                    lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                    lcd_mode = LCD_MODE_TEMP;
-                    break;
-                }
+            case LCD_PAGE_NO_GPS:
+                sprintf(lcdBuf, "NO GPS LOCK!");
+                printInfo("No GPS lock.");
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
+                break;
+            case LCD_PAGE_TIME:
                 sprintf(lcdBuf, "Time: %02d:%02d:%02d", gps_data.time.hours, gps_data.time.min , gps_data.time.sec);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 sprintf(lcdBuf, "Date: %06d", gps_data.date);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                lcd_mode = LCD_MODE_GPS;
                 break;
-            case LCD_MODE_GPS:
+            case LCD_PAGE_GPS:
                 sprintf(lcdBuf, "Lati: %.05f", gps_data.lati);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 sprintf(lcdBuf, "Long: %.05f", gps_data.longi);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                lcd_mode = LCD_MODE_SPEED;
                 break;
-            case LCD_MODE_SPEED:
+            case LCD_PAGE_SPEED:
                 sprintf(lcdBuf, "Km/h: %.02f", gps_data.speed);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 sprintf(lcdBuf, "Heading: %.02f", gps_data.course);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                lcd_mode = LCD_MODE_TEMP;
                 break;
-            case LCD_MODE_TEMP:
+            case LCD_PAGE_TEMP:
                 sprintf(lcdBuf, "Temp: %.02f DegC", bme280_data.temperature);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 sprintf(lcdBuf, "Pres: %.02f hPa", bme280_data.pressure);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                lcd_mode = LCD_MODE_WATER_LVL;
                 break;
-            case LCD_MODE_WATER_LVL:
+            case LCD_PAGE_WATER_LVL:
                 sprintf(lcdBuf, "Hum: %.02f %%RH", bme280_data.humidity);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 sprintf(lcdBuf, "WaterLvl: %s", waterlevel_str[water_level]);
                 lcd_send_string_xy(lcdBuf, 1, 0, DONT_CLEAR_LCD);
-                lcd_mode = LCD_MODE_BAT_VOL;
                 break;
-            case LCD_MODE_BAT_VOL:
+            case LCD_PAGE_BAT_VOL:
                 sprintf(lcdBuf, "BatVol: %.02fV", batVol);
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
-                lcd_mode = LCD_MODE_TIME;
+                break;
+            case LCD_PAGE_ALERTS:
+                sprintf(lcdBuf, "ALERT!!");
+                lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 break;
             default:
-                lcd_mode = LCD_MODE_TIME;
                 break;
             }
         }
