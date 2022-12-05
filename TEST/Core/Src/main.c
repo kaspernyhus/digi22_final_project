@@ -313,7 +313,7 @@ int main(void)
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
     alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1); // Low alert & High alert >= 1
-    alert_system_register(POSITION_ALERT, "Distance", ALERT_ABOVE_THRESHOLD, 0.1, 0.5); // Low alert above 100m, High alert above 500m
+    alert_system_register(POSITION_ALERT, "Distance", ALERT_ABOVE_THRESHOLD, 0.3, 0.5); // Low alert above 100m, High alert above 500m
 
   /* USER CODE END 2 */
 
@@ -345,9 +345,11 @@ int main(void)
 
                 // If position locked, calculate current distance to locked position
                 if (gps_lock_state == GPS_LOCKED) {
-                    float distance_km = (float)distance((double)gps_locked_location.lati, (double)gps_locked_location.longi, (double)gps_data.lati, (double)gps_data.longi);
-                    alert_state_t alert_state;
-                    alert_system_check(distance_km, POSITION_ALERT, &alert_state);
+//                    float distance_km = (float)distance((double)gps_locked_location.lati, (double)gps_locked_location.longi, (double)gps_data.lati, (double)gps_data.longi);
+                    float dif_lati = abs(gps_locked_location.lati - gps_data.lati);
+                	float dif_longi = abs(gps_locked_location.longi - gps_data.longi);
+                	alert_state_t alert_state;
+                    alert_system_check((dif_lati+dif_longi), POSITION_ALERT, &alert_state);
                 }
 
                 // Print to terminal log
