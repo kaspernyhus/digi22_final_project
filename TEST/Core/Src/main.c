@@ -32,6 +32,7 @@
 #include "water_level.h"
 #include "alert_system.h"
 #include "button.h"
+#include "gps_lock.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -88,6 +89,9 @@ uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
 uint16_t adcCh2 = 0;
 float batVol = 0;
+
+float lock_pos_lati = 0;
+float lock_pos_long = 0;
 
 // Systick
 volatile uint8_t systick = 0;
