@@ -12,6 +12,7 @@
 #pragma once
 
 #include "stm32f3xx_hal.h"
+#include <stdbool.h>
 
 #define MAX_ALERTS 20
 
@@ -54,5 +55,5 @@ typedef struct {
 
 void alert_system_init(TIM_HandleTypeDef* timer_handle);
 void alert_system_register(alert_type_t alert_type, char* name, alert_threshold_t threshold_type, float low_threshold, float high_threshold);
-void alert_system_check(float value, alert_type_t type);
+bool alert_system_check(float value, alert_type_t type);
 alert_state_t alert_system_alert_level(void);

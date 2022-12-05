@@ -19,15 +19,19 @@ static alert_state_t current_alert_state = ALERT_HIGH;
 
 TIM_HandleTypeDef* _tim;
 
+// TODO: return if event caused state change, to pass to LCD auto show ALERTS page
+
 /**
  * @brief Change system wide alert state
  *
- * @param new_state requested new alert state
+ * @param state requested new alert state
  */
-static void change_state(alert_state_t new_state) {
-    // Set system alert level
-    if (current_alert_state != new_state) {
-        current_alert_state = new_state;
+static bool change_state(alert_state_t state) {
+    bool state_changed = false;
+    // Only change state if requested state different from current state
+    if (current_alert_state != state) {
+        state_changed = true;
+        current_alert_state = state;
 
         switch (current_alert_state)
         {
@@ -56,14 +60,17 @@ static void change_state(alert_state_t new_state) {
             printWarning(buf);
         }
     }
+    // Return if state has changed
+    return state_changed;
 }
 
 /**
  * @brief Look for raised alert levels in registered alert modules
  *
  */
-static void evaluate_alert_state(void)
+static bool evaluate_alert_state(void)
 {
+    bool state_changed = false;
     // Look through registered alerts to find raised alert levels, highest set sytem wide alert level
     alert_state_t highest_alert = ALERT_NORMAL;
     for (int i=0; i<alerts_registered; i++) {
@@ -74,8 +81,9 @@ static void evaluate_alert_state(void)
         }
     }
     if (current_alert_state != highest_alert) {
-        change_state(highest_alert);
+        state_changed = change_state(highest_alert);
     }
+    return state_changed;
 }
 
 /**
@@ -119,7 +127,7 @@ void alert_system_register(alert_type_t alert_type, char* name, alert_threshold_
  * @param value float value of measured data
  * @param type type of measurement
  */
-void alert_system_check(float value, alert_type_t type)
+bool alert_system_check(float value, alert_type_t type)
 {
     // Look through registered alerts for matching type
     for (int i=0; i<alerts_registered; i++) {
@@ -130,15 +138,12 @@ void alert_system_check(float value, alert_type_t type)
                 if (value < alerts[i].low_thresshold) {
                     // No alert
                     alerts[i].alert_state = ALERT_NORMAL;
-                    evaluate_alert_state();
                 } else if (value > alerts[i].high_thresshold) {
                     // High alert
                     alerts[i].alert_state = ALERT_HIGH;
-                    evaluate_alert_state();
                 } else {
                     // low_thresshold < value < high_thresshold
                     alerts[i].alert_state = ALERT_LOW;
-                    evaluate_alert_state();
                 }
                 break;
 
@@ -146,23 +151,21 @@ void alert_system_check(float value, alert_type_t type)
                 if (value > alerts[i].high_thresshold) {
                     // No alert
                     alerts[i].alert_state = ALERT_NORMAL;
-                    evaluate_alert_state();
                 } else if (value < alerts[i].low_thresshold) {
                     // High alert
                     alerts[i].alert_state = ALERT_HIGH;
-                    evaluate_alert_state();
                 } else {
                     // low_thresshold < value < high_thresshold
                     alerts[i].alert_state = ALERT_LOW;
-                    evaluate_alert_state();
                 }
                 break;
-
             default:
                 break;
             }
         }
     }
+    // Return if state has changed
+    return evaluate_alert_state();
 }
 
 /**

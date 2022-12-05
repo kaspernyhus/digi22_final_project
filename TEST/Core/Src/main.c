@@ -165,9 +165,9 @@ void lcd_toggle(void)
         lcd_next_page = LCD_PAGE_TEMP;
         break;
     }
-    char buf[50];
-    sprintf(buf, "Current page: %d // Next page: %d", lcd_current_page, lcd_next_page);
-    printInfo(buf);
+    // char buf[50];
+    // sprintf(buf, "Current page: %d // Next page: %d", lcd_current_page, lcd_next_page);
+    // printInfo(buf);
     lcd_current_page = lcd_next_page;
     lcd_update_page = 1;
 }
@@ -296,7 +296,7 @@ int main(void)
     printInfo("Initialized alert system");
 
     // Set alerts
-    alert_system_register(TEMPERATURE_ALERT, "Temperature", ALERT_ABOVE_THRESHOLD, 23.0, 26.0);
+    alert_system_register(TEMPERATURE_ALERT, "Temperature", ALERT_ABOVE_THRESHOLD, 25.0, 28.0);
     alert_system_register(HUMIDITY_ALERT, "Humidity", ALERT_ABOVE_THRESHOLD, 72.0, 90.0);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
@@ -359,17 +359,23 @@ int main(void)
             }
 
             // Let alert_system check new values
-            alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
-            alert_system_check(bme280_data.humidity, HUMIDITY_ALERT);
-            alert_system_check(batVol, BATTERY_VOLTAGE_ALERT);
-            alert_system_check(water_level, WATER_LEVEL_ALERT);
-            alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
+            bool alert = false;
+            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
+            alert |= alert_system_check(bme280_data.humidity, HUMIDITY_ALERT);
+            alert |= alert_system_check(batVol, BATTERY_VOLTAGE_ALERT);
+            alert |= alert_system_check(water_level, WATER_LEVEL_ALERT);
+            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
+            // If any check set alert to true, go to ALERT page on lcd
+            if (alert){
+                lcd_current_page = LCD_PAGE_ALERTS;
+                lcd_update_page = 1;
+            }
 
             // Print new values to terminal log
             char buf[128];
             sprintf(buf, "Temp: %.2f DegC // Hum: %.2f %%RH // Pres: %.2f hPa // BatVol: %.2fV // WaterLvl: %s",
                 bme280_data.temperature, bme280_data.humidity, bme280_data.pressure, batVol, waterlevel_str[water_level]);
-            // printInfo(buf);
+            printInfo(buf);
 	    }
 
         if (log_data_cnt >= LOG_DATA_RATE) {
