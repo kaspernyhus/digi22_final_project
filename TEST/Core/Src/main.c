@@ -47,7 +47,7 @@
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
 #define GPSBUF_SIZE 500
-#define MAX_DIST 0.5 //Max distance in KM before GPS alert is triggered
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -83,9 +83,7 @@ water_level_t water_level = WATER_LEVEL_LOW;
 uint16_t batvol_reading = 0;
 float batVol = 0;
 
-float lock_pos_lati = 0;
-float lock_pos_long = 0;
-float dist = 0;
+gps_location_t gps_locked_location;
 
 // Systick
 volatile uint8_t systick = 0;
@@ -95,8 +93,7 @@ uint32_t systick_cnt = 0;
 volatile uint8_t gps_sat_lock = 0;		//EXT interrupt when GPS has lock
 volatile uint8_t gps_data_ready = 0;	//DMA interrupt when UART line goes idle
 volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and display
-volatile uint8_t gps_lock_pos = 0;		//Lock current GPS position
-volatile uint8_t pos_locked = 0;
+gps_lock_state_t gps_lock_state = GPS_UNLOCKED;
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint16_t log_data_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
@@ -191,13 +188,18 @@ void button_pressed(void)
 
 void button_long_pressed(void)
 {
-	if(gps_lock_pos == 0){
-		gps_lock_pos = 1;
+	if (gps_lock_state == GPS_UNLOCKED) {
+		gps_lock_state = GPS_LOCKED;
+        // Save most recent gps data
+        gps_locked_location.lati = gps_data.lati;
+        gps_locked_location.longi = gps_data.longi;
+        char buf[100];
+        sprintf(buf, "GPS position locked: %f,%f", gps_locked_location.lati, gps_locked_location.longi);
+        printInfo(buf);
 	} else {
-		gps_lock_pos = 0;
-		pos_locked = 0;
+		gps_lock_state = GPS_UNLOCKED;
+        printInfo("GPS position unlocked");
 	}
-
 }
 
 /* USER CODE END PV */
@@ -306,11 +308,12 @@ int main(void)
     printInfo("Initialized alert system");
 
     // Set alerts
-    alert_system_register(TEMPERATURE_ALERT, "Temperature", ALERT_ABOVE_THRESHOLD, 25.0, 28.0);
+    alert_system_register(TEMPERATURE_ALERT, "Temperature", ALERT_ABOVE_THRESHOLD, 25.0, 28.0); // Low alert above 25degC, High alert above 28 degC
     alert_system_register(HUMIDITY_ALERT, "Humidity", ALERT_ABOVE_THRESHOLD, 72.0, 90.0);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
-    alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1);
+    alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1); // Low alert & High alert >= 1
+    alert_system_register(POSITION_ALERT, "Distance", ALERT_ABOVE_THRESHOLD, 0.1, 0.5); // Low alert above 100m, High alert above 500m
 
   /* USER CODE END 2 */
 
@@ -340,18 +343,11 @@ int main(void)
                 gps_data.date = rolloverDateConvertion(gps_data.date);
                 gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
 
-                if(gps_lock_pos == 1){
-                	if(pos_locked == 0){
-                		lock_pos_lati = gps_data.lati;
-						lock_pos_long = gps_data.longi;
-						pos_locked = 1;
-						//TODO - Display GPS POS LOCKED!
-                	} else{
-                		dist = (float)distance((double)lock_pos_lati, (double)lock_pos_long, (double)gps_data.lati, (double)gps_data.longi);
-                		if(dist >= MAX_DIST){
-                			//TODO - Alert system trigger!
-                		}
-                	}
+                // If position locked, calculate current distance to locked position
+                if (gps_lock_state == GPS_LOCKED) {
+                    float distance_km = (float)distance((double)gps_locked_location.lati, (double)gps_locked_location.longi, (double)gps_data.lati, (double)gps_data.longi);
+                    alert_state_t alert_state;
+                    alert_system_check(distance_km, POSITION_ALERT, &alert_state);
                 }
 
                 // Print to terminal log

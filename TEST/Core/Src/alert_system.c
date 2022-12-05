@@ -142,7 +142,7 @@ bool alert_system_check(float value, alert_type_t type, alert_state_t* state)
                     // High alert
                     alerts[i].alert_state = ALERT_HIGH;
                 } else {
-                    // low_thresshold < value < high_thresshold
+                    // low_thresshold <= value < high_thresshold
                     alerts[i].alert_state = ALERT_LOW;
                 }
                 break;
@@ -155,7 +155,7 @@ bool alert_system_check(float value, alert_type_t type, alert_state_t* state)
                     // High alert
                     alerts[i].alert_state = ALERT_HIGH;
                 } else {
-                    // low_thresshold < value < high_thresshold
+                    // low_thresshold <= value < high_thresshold
                     alerts[i].alert_state = ALERT_LOW;
                 }
                 break;
