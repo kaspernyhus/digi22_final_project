@@ -71,13 +71,33 @@ DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 typedef enum {
-    LCD_MODE_TIME,
-    LCD_MODE_GPS,
-    LCD_MODE_SPEED,
-    LCD_MODE_TEMP,
-    LCD_MODE_WATER_LVL,
-    LCD_MODE_BAT_VOL
-} lcd_mode_t;
+    LCD_PAGE_TIME,
+    LCD_PAGE_GPS,
+    LCD_PAGE_SPEED,
+    LCD_PAGE_TEMP,
+    LCD_PAGE_WATER_LVL,
+    LCD_PAGE_BAT_VOL,
+    LCD_PAGE_LAST,
+    LCD_PAGE_ALERTS
+} lcd_page_t;
+
+lcd_page_t lcd_current_page = LCD_PAGE_TIME;
+
+/**
+ * @brief Go to next lcd page.
+ * Note: LCD_PAGE_ALERTS always goes to LCD_PAGE_TIME
+ *
+ */
+void lcd_toggle(void)
+{
+    if (lcd_current_page == LCD_PAGE_ALERTS) {
+        lcd_current_page = LCD_PAGE_TIME;
+    } else if (lcd_current_page != (LCD_PAGE_LAST-1)) {
+        lcd_current_page++;
+    } else {
+        lcd_current_page = LCD_PAGE_TIME;
+    }
+}
 
 // Buffers
 uint8_t rx_buf[GPSBUF_SIZE]; //Buffer to hold raw gps data
