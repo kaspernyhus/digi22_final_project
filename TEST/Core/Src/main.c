@@ -31,6 +31,7 @@
 #include "nmea_gps.h"
 #include "water_level.h"
 #include "alert_system.h"
+#include "button.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -40,7 +41,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SYS_TICK_INTERVAL_MS 200
+#define SYS_TICK_INTERVAL_MS 40
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
@@ -101,6 +102,25 @@ static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t log_data_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
 
+// User button
+button_t user_button;
+button_pin_state_t read_user_button(void)
+{
+  return (button_pin_state_t)HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
+}
+
+void button_pressed(void)
+{
+    // TODO: Cycle through LCD
+    printInfo("User Button press!");
+}
+
+void button_long_pressed(void)
+{
+    // TODO: Save and lock GPS location
+    printInfo("User Button long press!");
+}
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,40 +150,40 @@ static void MX_TIM2_Init(void);
   */
 int main(void)
 {
-    /* USER CODE BEGIN 1 */
+  /* USER CODE BEGIN 1 */
         char logData[100];
         lcd_mode_t lcd_mode = LCD_MODE_TIME;
 
-    /* USER CODE END 1 */
+  /* USER CODE END 1 */
 
-    /* MCU Configuration--------------------------------------------------------*/
+  /* MCU Configuration--------------------------------------------------------*/
 
-    /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-    HAL_Init();
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
 
-    /* USER CODE BEGIN Init */
+  /* USER CODE BEGIN Init */
 
-    /* USER CODE END Init */
+  /* USER CODE END Init */
 
-    /* Configure the system clock */
-    SystemClock_Config();
+  /* Configure the system clock */
+  SystemClock_Config();
 
-    /* USER CODE BEGIN SysInit */
+  /* USER CODE BEGIN SysInit */
 
-    /* USER CODE END SysInit */
+  /* USER CODE END SysInit */
 
-    /* Initialize all configured peripherals */
-    MX_GPIO_Init();
-    MX_DMA_Init();
-    MX_USART2_UART_Init();
-    MX_ADC1_Init();
-    MX_I2C1_Init();
-    MX_USART3_UART_Init();
-    MX_USART1_UART_Init();
-    MX_IWDG_Init();
-    MX_TIM15_Init();
-    MX_TIM2_Init();
-    /* USER CODE BEGIN 2 */
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART2_UART_Init();
+  MX_ADC1_Init();
+  MX_I2C1_Init();
+  MX_USART3_UART_Init();
+  MX_USART1_UART_Init();
+  MX_IWDG_Init();
+  MX_TIM15_Init();
+  MX_TIM2_Init();
+  /* USER CODE BEGIN 2 */
 
     HAL_TIM_Base_Start_IT(&htim2);	//Starting Timer2 in interrupt mode
     HAL_TIM_Base_Start_IT(&htim15);
@@ -180,6 +200,17 @@ int main(void)
     lcd_send_string_xy("Boat-log ON!", 0, 0, CLEAR_LCD);
     HAL_Delay(2000);
     lcd_clear();
+
+    // User button
+    button_config_t button_cfg = {
+        .active_state = BUTTON_PIN_STATE_LOW,
+        .read_pin_cb = &read_user_button,
+        .debounce_ticks = 0,
+        .long_press_ticks = 16
+    };
+    button_init(&user_button, &button_cfg);
+    button_register_cb(&user_button, &button_pressed, BUTTON_ON_SHORT_PRESS);
+    button_register_cb(&user_button, &button_long_pressed, BUTTON_ON_LONG_PRESS);
 
     // BME280 temperature/humudity/pressure sensor
     if (bme280_init(&hi2c1)) {
@@ -203,23 +234,24 @@ int main(void)
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
     alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1);
 
-    /* USER CODE END 2 */
+  /* USER CODE END 2 */
 
-    /* Infinite loop */
-    /* USER CODE BEGIN WHILE */
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
     while (1)
     {
         if (systick) {
             systick = 0;
+            button_tick(&user_button);
             systick_cnt++;
             update_display_cnt++;
             read_sensor_cnt++;
             log_data_cnt++;
             check_water_lvl_cnt++;
         }
-        /* USER CODE END WHILE */
+    /* USER CODE END WHILE */
 
-        /* USER CODE BEGIN 3 */
+    /* USER CODE BEGIN 3 */
         if(gps_sat_lock == 1) {
             if (gps_data_ready) {
                 gps_data_ready = 0;
@@ -562,7 +594,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 200000-1;
+  htim2.Init.Period = 40000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
