@@ -162,6 +162,7 @@ bool alert_system_check(float value, alert_type_t type, alert_state_t* state)
             default:
                 break;
             }
+            *state = alerts[i].alert_state;
         }
     }
     // Return if state has changed
