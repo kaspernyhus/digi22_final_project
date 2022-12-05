@@ -13,6 +13,8 @@
 
 #include <stdint.h>
 
+#define WATER_LEVEL_THRESHOLD 600
+
 typedef enum {
     WATER_LEVEL_LOW,
     WATER_LEVEL_HIGH
@@ -20,4 +22,4 @@ typedef enum {
 
 static const char* const waterlevel_str[2] = {"Low", "High"};
 
-water_level_t check_water_level(uint16_t adc_reading);
+water_level_t water_level_convert(uint16_t adc_reading);

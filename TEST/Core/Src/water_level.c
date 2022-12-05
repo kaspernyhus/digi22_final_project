@@ -11,9 +11,9 @@
 
 #include "water_level.h"
 
-water_level_t check_water_level(uint16_t adc_reading)
+water_level_t water_level_convert(uint16_t adc_reading)
 {
-    if(adc_reading <= 600) {
+    if (adc_reading <= WATER_LEVEL_THRESHOLD) {
         return WATER_LEVEL_LOW;
     } else {
         return WATER_LEVEL_HIGH;

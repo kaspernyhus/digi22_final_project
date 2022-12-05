@@ -349,8 +349,20 @@ int main(void)
 
             bme280_read_all(&bme280_data);
 
-            water_level = check_water_level(waterlevel_reading);
-            if (water_level == WATER_LEVEL_HIGH) {
+            water_level = water_level_convert(waterlevel_reading);
+
+            // Let alert_system check new values
+            bool alert = false;
+            alert_state_t alert_state;
+            alert_state_t waterlevel_alert_state;
+            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT, &alert_state);
+            alert |= alert_system_check(bme280_data.humidity, HUMIDITY_ALERT, &alert_state);
+            alert |= alert_system_check(batVol, BATTERY_VOLTAGE_ALERT, &alert_state);
+            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT, &alert_state);
+            alert |= alert_system_check(water_level, WATER_LEVEL_ALERT, &waterlevel_alert_state);
+
+            // Control Water Pump based on water level
+            if (waterlevel_alert_state != ALERT_NORMAL) {
                 // Switch relay to turn water pump on
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_SET);
             } else {
@@ -358,13 +370,6 @@ int main(void)
                 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_14, GPIO_PIN_RESET);
             }
 
-            // Let alert_system check new values
-            bool alert = false;
-            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
-            alert |= alert_system_check(bme280_data.humidity, HUMIDITY_ALERT);
-            alert |= alert_system_check(batVol, BATTERY_VOLTAGE_ALERT);
-            alert |= alert_system_check(water_level, WATER_LEVEL_ALERT);
-            alert |= alert_system_check(bme280_data.temperature, TEMPERATURE_ALERT);
             // If any check set alert to true, go to ALERT page on lcd
             if (alert){
                 lcd_current_page = LCD_PAGE_ALERTS;

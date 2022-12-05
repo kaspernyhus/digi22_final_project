@@ -127,7 +127,7 @@ void alert_system_register(alert_type_t alert_type, char* name, alert_threshold_
  * @param value float value of measured data
  * @param type type of measurement
  */
-bool alert_system_check(float value, alert_type_t type)
+bool alert_system_check(float value, alert_type_t type, alert_state_t* state)
 {
     // Look through registered alerts for matching type
     for (int i=0; i<alerts_registered; i++) {
