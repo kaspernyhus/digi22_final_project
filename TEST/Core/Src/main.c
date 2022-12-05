@@ -47,6 +47,7 @@
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
 #define GPSBUF_SIZE 500
+#define MAX_DIST 0.5 //Max distance in KM before GPS alert is triggered
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -79,11 +80,12 @@ bme280_data_t bme280_data;
 gps_data_t gps_data = {.time.hours = 00, .time.min = 00, .time.sec = 00}; // parsed gps data
 uint16_t waterlevel_reading = 0;
 water_level_t water_level = WATER_LEVEL_LOW;
-uint16_t adcCh2 = 0;
+uint16_t batvol_reading = 0;
 float batVol = 0;
 
 float lock_pos_lati = 0;
 float lock_pos_long = 0;
+float dist = 0;
 
 // Systick
 volatile uint8_t systick = 0;
@@ -93,10 +95,12 @@ uint32_t systick_cnt = 0;
 volatile uint8_t gps_sat_lock = 0;		//EXT interrupt when GPS has lock
 volatile uint8_t gps_data_ready = 0;	//DMA interrupt when UART line goes idle
 volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and display
-static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
-static uint8_t log_data_cnt = 0;
-static uint8_t check_water_lvl_cnt = 0;
-static uint8_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
+volatile uint8_t gps_lock_pos = 0;		//Lock current GPS position
+volatile uint8_t pos_locked = 0;
+static uint16_t read_sensor_cnt = SENSOR_READ_RATE;
+static uint16_t log_data_cnt = 0;
+static uint16_t check_water_lvl_cnt = 0;
+static uint16_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
 static alert_state_t alert_state_global = ALERT_NORMAL;
 
 // LCD control
@@ -187,8 +191,13 @@ void button_pressed(void)
 
 void button_long_pressed(void)
 {
-    // TODO: Save and lock GPS location
-    printInfo("User Button long press!");
+	if(gps_lock_pos == 0){
+		gps_lock_pos = 1;
+	} else {
+		gps_lock_pos = 0;
+		pos_locked = 0;
+	}
+
 }
 
 /* USER CODE END PV */
@@ -288,7 +297,7 @@ int main(void)
 
     // OpenLog
     //Header for .csv logfile
-    sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,ADC_Ch2");
+    sprintf(logData, "Time,Date,Latitude,Longitude,Speed,Course,Temp,Pres,Hum,WaterLvl,BatVoltage");
     openlogAppendFile("log1.csv", logData);
     printInfo("Started OpenLog file");
 
@@ -331,6 +340,20 @@ int main(void)
                 gps_data.date = rolloverDateConvertion(gps_data.date);
                 gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
 
+                if(gps_lock_pos == 1){
+                	if(pos_locked == 0){
+                		lock_pos_lati = gps_data.lati;
+						lock_pos_long = gps_data.longi;
+						pos_locked = 1;
+						//TODO - Display GPS POS LOCKED!
+                	} else{
+                		dist = (float)distance((double)lock_pos_lati, (double)lock_pos_long, (double)gps_data.lati, (double)gps_data.longi);
+                		if(dist >= MAX_DIST){
+                			//TODO - Alert system trigger!
+                		}
+                	}
+                }
+
                 // Print to terminal log
                 char buf[128];
                 sprintf(buf, "Latitude: %.2f // Longitude: %.2f // Course: %.2f // Speed: %.2f",
@@ -346,8 +369,8 @@ int main(void)
             waterlevel_reading = HAL_ADC_GetValue(&hadc1);
             HAL_ADC_Start(&hadc1);
             HAL_ADC_PollForConversion(&hadc1, 1000);
-            adcCh2 = HAL_ADC_GetValue(&hadc1);
-            batVol = (15.275/4095)*(float)adcCh2;
+            batvol_reading = HAL_ADC_GetValue(&hadc1);
+            batVol = (15.275/4095)*(float)batvol_reading;
 
             bme280_read_all(&bme280_data);
 

@@ -11,7 +11,7 @@
 double deg2rad(double);
 double rad2deg(double);
 double convert_gps_format(double gps_data);
-double distance(double lat1, double lon1, double lat2, double lon2, char unit);
+double distance(double lati1, double long1, double lati2, double long2);
 
 
 

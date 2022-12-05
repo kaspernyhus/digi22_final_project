@@ -27,22 +27,22 @@ double convert_gps_format(double gps_data) //Convert from GPS raw data, to decim
 	  return (double)dd+m;
 }
 
-double distance(double lat1, double lon1, double lat2, double lon2) {
+double distance(double lati1, double long1, double lati2, double long2) {
   double theta;
   double dist;
 
 
-  lat1 = convert_gps_format(lat1);
-  lon1 = convert_gps_format(lon1);
-  lat2 = convert_gps_format(lat2);
-  lon2 = convert_gps_format(lon2);
+  lati1 = convert_gps_format(lati1);
+  long1 = convert_gps_format(long1);
+  lati2 = convert_gps_format(lati2);
+  long2 = convert_gps_format(long2);
 
-  if ((lat1 == lat2) && (lon1 == lon2)) {
+  if ((lati1 == lati2) && (long1 == long2)) {
     return 0;
   }
   else {
-    theta = lon1 - lon2;
-    dist = sin(deg2rad(lat1)) * sin(deg2rad(lat2)) + cos(deg2rad(lat1)) * cos(deg2rad(lat2)) * cos(deg2rad(theta));
+    theta = long1 - long2;
+    dist = sin(deg2rad(lati1)) * sin(deg2rad(lati2)) + cos(deg2rad(lati1)) * cos(deg2rad(lati2)) * cos(deg2rad(theta));
     dist = acos(dist);
     dist = rad2deg(dist);
     dist = dist * 60 * 1.1515;
