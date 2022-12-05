@@ -43,6 +43,7 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define SYS_TICK_INTERVAL_MS 40
+#define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
 #define GPSBUF_SIZE 500
@@ -95,7 +96,7 @@ volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and d
 static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint8_t log_data_cnt = 0;
 static uint8_t check_water_lvl_cnt = 0;
-static uint8_t lcd_update_page = 1;
+static uint8_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
 static alert_state_t alert_state_global = ALERT_NORMAL;
 
 // LCD control
@@ -169,7 +170,7 @@ void lcd_toggle(void)
     // sprintf(buf, "Current page: %d // Next page: %d", lcd_current_page, lcd_next_page);
     // printInfo(buf);
     lcd_current_page = lcd_next_page;
-    lcd_update_page = 1;
+    lcd_update_cnt = DISPLAY_REFRESH_RATE;
 }
 
 // User button
@@ -315,6 +316,7 @@ int main(void)
             read_sensor_cnt++;
             log_data_cnt++;
             check_water_lvl_cnt++;
+            lcd_update_cnt++;
             alert_state_global = alert_system_alert_level();
         }
     /* USER CODE END WHILE */
@@ -331,8 +333,8 @@ int main(void)
 
                 // Print to terminal log
                 char buf[128];
-                sprintf(buf, "Longitude: %.2f // Latitude: %.2f // Course: %.2f // Speed: %.2f",
-                    gps_data.longi, gps_data.lati, gps_data.course, gps_data.speed);
+                sprintf(buf, "Latitude: %.2f // Longitude: %.2f // Course: %.2f // Speed: %.2f",
+                    gps_data.lati, gps_data.longi, gps_data.course, gps_data.speed);
                 printInfo(buf);
             }
         }
@@ -373,7 +375,7 @@ int main(void)
             // If any check set alert to true, go to ALERT page on lcd
             if (alert){
                 lcd_current_page = LCD_PAGE_ALERTS;
-                lcd_update_page = 1;
+                lcd_update_cnt = DISPLAY_REFRESH_RATE;
             }
 
             // Print new values to terminal log
@@ -393,8 +395,8 @@ int main(void)
             openlogAppendFile("log1.csv", logData);
         }
 
-        if(lcd_update_page) {
-            lcd_update_page = 0;
+        if(lcd_update_cnt >= DISPLAY_REFRESH_RATE) {
+            lcd_update_cnt = 0;
             switch (lcd_current_page)
             {
             case LCD_PAGE_NO_GPS:
