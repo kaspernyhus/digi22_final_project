@@ -100,7 +100,7 @@ static uint8_t check_water_lvl_cnt = 0;
 static uint8_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
 static alert_state_t alert_state_global = ALERT_NORMAL;
 
-// LCD control
+// LCD pages
 typedef enum {
     LCD_PAGE_NO_GPS,
     LCD_PAGE_TIME, // Require GPS lock
@@ -116,7 +116,7 @@ lcd_page_t lcd_current_page = LCD_PAGE_NO_GPS;
 
 /**
  * @brief Go to next lcd page.
- *
+ *  Implementation of LCD state machine
  */
 void lcd_toggle(void)
 {
@@ -167,15 +167,18 @@ void lcd_toggle(void)
         lcd_next_page = LCD_PAGE_TEMP;
         break;
     }
-    // char buf[50];
-    // sprintf(buf, "Current page: %d // Next page: %d", lcd_current_page, lcd_next_page);
-    // printInfo(buf);
     lcd_current_page = lcd_next_page;
     lcd_update_cnt = DISPLAY_REFRESH_RATE;
 }
 
 // User button
 button_t user_button;
+
+/**
+ * @brief Read pin level on button pin
+ *
+ * @return BUTTON_PIN_STATE_LOW / BUTTON_PIN_STATE_HIGH
+ */
 button_pin_state_t read_user_button(void)
 {
   return (button_pin_state_t)HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_13);
@@ -329,6 +332,7 @@ int main(void)
             log_data_cnt++;
             check_water_lvl_cnt++;
             lcd_update_cnt++;
+            // Update system alert level
             alert_state_global = alert_system_alert_level();
         }
     /* USER CODE END WHILE */
