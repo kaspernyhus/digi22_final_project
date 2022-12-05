@@ -97,10 +97,10 @@ volatile uint8_t gps_data_ready = 0;	//DMA interrupt when UART line goes idle
 volatile uint8_t gps_active = 0;		//GPS data is processed and ready to log and display
 volatile uint8_t gps_lock_pos = 0;		//Lock current GPS position
 volatile uint8_t pos_locked = 0;
-static uint16_t read_sensor_cnt = SENSOR_READ_RATE;
+static uint8_t read_sensor_cnt = SENSOR_READ_RATE;
 static uint16_t log_data_cnt = 0;
-static uint16_t check_water_lvl_cnt = 0;
-static uint16_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
+static uint8_t check_water_lvl_cnt = 0;
+static uint8_t lcd_update_cnt = DISPLAY_REFRESH_RATE;
 static alert_state_t alert_state_global = ALERT_NORMAL;
 
 // LCD control
