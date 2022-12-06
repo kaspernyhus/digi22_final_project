@@ -949,12 +949,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef* htim)
 // External Interrupt ISR Handler CallBackFun
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if(GPIO_Pin == GPIO_PIN_4) // INT Source is pin PB4
+    // GPS satelite lock pulse (PB4)
+    if(GPIO_Pin == GPIO_PIN_4)
     {
         if(gps_sat_lock == 0)
         {
             gps_sat_lock = 1;
-            // Auto switch page from NO GPS to TIME
+            // Auto switch page from NO GPS to TIME when a satelite lock event happens
             if(lcd_current_page == LCD_PAGE_NO_GPS){
             	lcd_current_page = LCD_PAGE_TIME;
                 lcd_update_cnt = DISPLAY_REFRESH_RATE;
