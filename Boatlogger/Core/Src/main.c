@@ -42,7 +42,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define SYS_TICK_INTERVAL_MS 40
+#define SYS_TICK_INTERVAL_MS 20
 #define DISPLAY_REFRESH_RATE 2000/SYS_TICK_INTERVAL_MS
 #define SENSOR_READ_RATE 5000/SYS_TICK_INTERVAL_MS
 #define LOG_DATA_RATE 10000/SYS_TICK_INTERVAL_MS
@@ -288,8 +288,8 @@ int main(void)
     button_config_t button_cfg = {
         .active_state = BUTTON_PIN_STATE_LOW,
         .read_pin_cb = &read_user_button,
-        .debounce_ticks = 0,
-        .long_press_ticks = 16
+        .debounce_ticks = 1,
+        .long_press_ticks = 32
     };
     button_init(&user_button, &button_cfg);
     button_register_cb(&user_button, &button_pressed, BUTTON_ON_SHORT_PRESS);
@@ -316,7 +316,7 @@ int main(void)
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Low Battery Voltage", ALERT_BELOW_THRESHOLD, 10.8, 11.2);
     alert_system_register(BATTERY_VOLTAGE_ALERT, "Overvoltage protection", ALERT_ABOVE_THRESHOLD, 12.5, 13.0);
     alert_system_register(WATER_LEVEL_ALERT, "Water level", ALERT_ABOVE_THRESHOLD, 1, 1); // Low alert & High alert >= 1
-    alert_system_register(POSITION_ALERT, "Distance", ALERT_ABOVE_THRESHOLD, 0.3, 0.5); // Low alert above 100m, High alert above 500m
+    alert_system_register(POSITION_ALERT, "Distance", ALERT_ABOVE_THRESHOLD, 0.3, 0.5); // Low alert above 300m, High alert above 500m
 
   /* USER CODE END 2 */
 
@@ -343,9 +343,15 @@ int main(void)
                 gps_data_ready = 0;
                 getLocation(&gps_data, gps_buf);
                 memset(gps_buf, 0x00, GPSBUF_SIZE);
-                gps_active = 1;
                 gps_data.date = rolloverDateConvertion(gps_data.date);
                 gps_data.speed = gps_data.speed*1.852; // Convert to Km/h
+                gps_active = 1;
+
+                // Auto switch page from NO GPS to TIME when a satelite lock event happens
+                if(lcd_current_page == LCD_PAGE_NO_GPS){
+                	lcd_current_page = LCD_PAGE_TIME;
+                    lcd_update_cnt = DISPLAY_REFRESH_RATE;
+                }
 
                 // If position locked, calculate current distance to locked position
                 if (gps_lock_state == GPS_LOCKED) {
@@ -695,7 +701,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 72-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 40000-1;
+  htim2.Init.Period = 20000-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -955,11 +961,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         if(gps_sat_lock == 0)
         {
             gps_sat_lock = 1;
-            // Auto switch page from NO GPS to TIME when a satelite lock event happens
-            if(lcd_current_page == LCD_PAGE_NO_GPS){
-            	lcd_current_page = LCD_PAGE_TIME;
-                lcd_update_cnt = DISPLAY_REFRESH_RATE;
-            }
         }
     }
 }
