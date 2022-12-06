@@ -425,8 +425,8 @@ int main(void)
             switch (lcd_current_page)
             {
             case LCD_PAGE_NO_GPS:
-                sprintf(lcdBuf, "NO GPS LOCK!");
-                printInfo("No GPS lock.");
+                sprintf(lcdBuf, "NO GPS SIGNAL!");
+                printInfo("No GPS signal.");
                 lcd_send_string_xy(lcdBuf, 0, 0, CLEAR_LCD);
                 break;
             case LCD_PAGE_TIME:
