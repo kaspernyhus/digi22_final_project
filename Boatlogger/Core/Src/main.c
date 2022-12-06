@@ -954,8 +954,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         if(gps_sat_lock == 0)
         {
             gps_sat_lock = 1;
+            // Auto switch page from NO GPS to TIME
             if(lcd_current_page == LCD_PAGE_NO_GPS){
             	lcd_current_page = LCD_PAGE_TIME;
+                lcd_update_cnt = DISPLAY_REFRESH_RATE;
             }
         }
     }
